@@ -25,21 +25,33 @@ NO_CONTENT = Response({}, status=HTTP_204_NO_CONTENT)
 
 BAD_REQUEST = (
     lambda x: Response(
-        {'msg': 'fail', 'description': x},
+        {
+            'msg': 'fail',
+            'error_code': 'bad_request',
+            'description': x
+        },
         status=HTTP_400_BAD_REQUEST
     )
 )
 
 UNAUTHORIZED = (
     lambda x: Response(
-        {'msg': 'fail', 'description': x},
+        {
+            'msg': 'fail',
+            'error_code': 'unauthorized',
+            'description': x
+        },
         status=HTTP_401_UNAUTHORIZED
     )
 )
 
 FORBIDDEN = (
     lambda x: Response(
-        {'msg': 'fail', 'description': x},
+        {
+            'msg': 'fail',
+            'error_code': 'forbidden',
+            'description': x
+        },
         status=HTTP_403_FORBIDDEN
     )
 )
@@ -47,6 +59,7 @@ FORBIDDEN = (
 NOT_FOUND = Response(
     {
         'msg': 'fail',
+        'error_code': 'not_found',
         'description': "Resource not found."
     },
     status=HTTP_404_NOT_FOUND,
