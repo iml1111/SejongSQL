@@ -24,3 +24,10 @@ def get_random_id():
     string_pool = ascii_letters + "0123456789"
     rand_string = [choice(string_pool) for _ in range(15)]
     return "".join(rand_string)
+
+
+def django_header(header: str):
+    "입력된 헤더명을 Django META 헤더 명칭으로 변환"
+    v1 = header.upper().replace('-', '_')
+    v2 = f"HTTP_{v1}"
+    return v1, v2

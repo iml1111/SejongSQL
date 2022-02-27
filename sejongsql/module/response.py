@@ -9,48 +9,59 @@ from rest_framework.status import (
     HTTP_404_NOT_FOUND,
 )
 
-OK = (
-    lambda x: Response({'msg':'success'}, status=HTTP_200_OK)
-    if x is None else
-    Response({'msg': 'success', 'result': x}, status=HTTP_200_OK)
-)
+def OK(result=None):
+    if result is None:
+        return Response(
+            {'msg':'success'},
+            status=HTTP_200_OK
+        )
+    return Response(
+        {'msg': 'success', 'result': result},
+        status=HTTP_200_OK
+    )
 
-CREATED = (
-    lambda x: Response({'msg':'created'}, status=HTTP_201_CREATED)
-    if x is None else
-    Response({'msg': 'created', 'result': x}, status=HTTP_201_CREATED)
-)
+
+def CREATED(result=None):
+    if result is None:
+        return Response(
+            {'msg': 'created'},
+            status=HTTP_201_CREATED
+        )
+    return Response(
+        {'msg': 'created', 'result': result},
+        status=HTTP_201_CREATED
+    )
 
 NO_CONTENT = Response({}, status=HTTP_204_NO_CONTENT)
 
 BAD_REQUEST = (
-    lambda x: Response(
+    lambda desc: Response(
         {
             'msg': 'fail',
             'error_code': 'bad_request',
-            'description': x
+            'description': desc
         },
         status=HTTP_400_BAD_REQUEST
     )
 )
 
 UNAUTHORIZED = (
-    lambda x: Response(
+    lambda desc: Response(
         {
             'msg': 'fail',
             'error_code': 'unauthorized',
-            'description': x
+            'description': desc
         },
         status=HTTP_401_UNAUTHORIZED
     )
 )
 
 FORBIDDEN = (
-    lambda x: Response(
+    lambda desc: Response(
         {
             'msg': 'fail',
             'error_code': 'forbidden',
-            'description': x
+            'description': desc
         },
         status=HTTP_403_FORBIDDEN
     )
