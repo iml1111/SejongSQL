@@ -6,7 +6,7 @@ services:
     container_name: "nginx-proxy"
     restart: "unless-stopped"
     ports:
-      - "5001:80"
+      - "5001:80" # check
     depends_on:
       - "ssql-server"
     environment:
@@ -19,18 +19,18 @@ services:
       start_period: 15s
   
   ssql-server:
-    image: "SSQL-IMAGE:latest" # check
+    image: "sejongsql:latest" # check
     container_name: "ssql-server"
     restart: "unless-stopped"
     ports:
-      - "5002:5000"
+      - "5002:5000" # check
     volumes:
-      - "/home/ubuntu/log:/home/log"
-      - "/home/ubuntu/assets:/home/assets"
+      - "/home/your/log:/home/log" # check
+      - "/home/your/assets:/home/assets" # check
     depends_on:
-      - "mongodb"
+      - "ssql-mysql"
     env_file:
-      - "ssql.env"
+      - "ssql.env" # check
     healthcheck:
       test: ["CMD-SHELL", "curl --silent --fail 127.0.0.1:5000 || exit 1"]
       interval: 600s
@@ -39,11 +39,11 @@ services:
       start_period: 15s
   
   ssql-mysql:
-    image: mysql:8.0.28
+    image: mysql:8.0.28 # check
     container_name: ssql-mysql
     volumes:
-      - /your/data/path/mysql:/var/lib/mysql # check
+      - /home/data/mysql:/var/lib/mysql # check
     ports:
-      - 3307:3306
-    environment:
-      - "ssql.env"
+      - 3307:3306 # check
+    env_file:
+      - "ssql.env" # check
