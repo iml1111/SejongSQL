@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import sample, index
+from .views import sample, index, users
 
 app_name = 'app_main'
 
@@ -18,4 +18,12 @@ urlpatterns = [
         sample.SampleCommentView.as_view(),
         name='sample_comment'
     )
+]
+
+urlpatterns += [
+    path('api/auth/signup', users.SignupView.as_view(), name='signup'),
+    path('api/auth/signin', users.SigninView.as_view(), name='signin'),
+    path('api/v1/users/me', users.UserView.as_view(), name='users-me'),
+    path('api/v1/users/<str:user_id>', users.UserView.as_view(), name='get_my_userinfo'),
+
 ]
