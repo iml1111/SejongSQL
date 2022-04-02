@@ -1,5 +1,5 @@
 from rest_framework.views import APIView
-from module.response import OK, NOT_FOUND, NO_CONTENT, BAD_REQUEST, FORBIDDEN, CREATED
+from module.response import OK, NOT_FOUND, NO_CONTENT, BAD_REQUEST, FORBIDDEN, CONFLICT, CREATED
 from module.validator import Validator, Json, Path, Header
 from app_main.models import User
 from app_main.serializer import UserSrz
@@ -22,9 +22,12 @@ class SignupView(APIView):
 
         user = User.objects.filter(id=data['id'])
         if user:
-            return FORBIDDEN("user had already registered.")
-
-        #비밀번호 길이 검증. 8자 이상
+            return CONFLICT("user has already registered.")
+        
+        if len(data['id']) > 20:
+            return FORBIDDEN("id length is over 20.")
+        if len(data['pw']) < 8:
+            return FORBIDDEN("pw length is under 8.")
 
         user = User(
             id = data['id'],
@@ -51,11 +54,11 @@ class SigninView(APIView):
         user = User.objects.filter(id=data['id']).first()
 
         if not user:
-            return BAD_REQUEST("user does not exist.")
+            return FORBIDDEN("user does not exist.")
             
 
         if not check_password(data['pw'], user.pw):
-            return BAD_REQUEST("pw is not correct.")
+            return FORBIDDEN("pw is not correct.")
 
         return OK({
             'access_token': create_access_token(identity=user.id),
@@ -67,10 +70,10 @@ class UserView(APIView):
     def get(self, request):
         identity = get_jwt_identity(request)
 
-        try:                                            #try-except 구문으로 검증해도 되는지 확인하기.
+        try:
             user = User.objects.get(id=identity)
         except:
-            return BAD_REQUEST("user does not exist.")
+            return FORBIDDEN("user does not exist.")
 
         user_srz = UserSrz(user)
         return OK(user_srz.data)
@@ -82,7 +85,7 @@ class UserView(APIView):
         try:
             user = User.objects.get(id=identity)
         except:
-            return BAD_REQUEST("user does not exist.")
+            return FORBIDDEN("user does not exist.")
 
         validator = Validator(
             request, path, params=[
@@ -105,7 +108,7 @@ class UserView(APIView):
         user.name = data['name']
         if pw_update:
             if not check_password(data['old_pw'], user.pw):
-                return BAD_REQUEST("pw is not correct.")
+                return FORBIDDEN("pw is not correct.")
             
             user.pw = make_password(data['new_pw'])
             user.pw_updated_at = timezone.now()
@@ -120,7 +123,7 @@ class UserView(APIView):
         try:
             user = User.objects.get(id=identity)
         except:
-            return BAD_REQUEST("user does not exist.")
+            return FORBIDDEN("user does not exist.")
 
         validator = Validator(
             request, path, params=[
@@ -131,32 +134,7 @@ class UserView(APIView):
         data = validator.data
 
         if not check_password(data['pw'], user.pw):
-            return BAD_REQUEST("pw is not correct.")
+            return FORBIDDEN("pw is not correct.")
         
         user.delete()
         return NO_CONTENT
-
-class UserInfoView(APIView):
-    @jwt_required()
-    def get(self, request, **path):
-        identity = get_jwt_identity(request)
-
-
-
-
-
-        try:
-            user = User.objects.get(id=identity)
-        except:
-            return BAD_REQUEST("user does not exist.")
-
-        validator = Validator(
-            request, path, params=[
-                Json('name', str),
-                Json('old_pw', str, optional=True),
-                Json('new_pw', str, optional=True),
-            ])
-        if not validator.is_valid:
-            return BAD_REQUEST(validator.error_msg)
-        data = validator.data
-        
