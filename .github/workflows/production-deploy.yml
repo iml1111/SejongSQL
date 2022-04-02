@@ -1,0 +1,38 @@
+name: SSQL Production Deployment
+# https://velog.io/@soosungp33/Golang-Docker-%EC%9D%B4%EB%AF%B8%EC%A7%80-%EA%B0%80%EB%B3%8D%EA%B2%8C-%EB%A7%8C%EB%93%A4%EA%B8%B0
+# buildx?? 뭐가 다른거지
+on:
+  push:
+    branches:
+      - main
+
+env:
+  DOCKERHUB_ID: $${{ secrets.DOCKERHUB_ID }}
+  DOCKERHUB_TOKEN: $${{ secrets.DOCKERHUB_TOKEN }}
+  IMAGE_URI: $${{ secrets.IMAGE_URI }}
+  IMAGE_TAG: $${{ secrets.IMAGE_TAG }}
+
+jobs:
+  build:
+    name: CI
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout 
+      uses: actions/checkout@v2
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v1
+
+    - name: Login to DockerHub
+      uses: docker/login-action@v1
+      with:
+        username: ${{ env.DOCKERHUB_ID }}
+        password: ${{ env.DOCKERHUB_TOKEN }}
+
+    - name: Build and push
+      id: docker_build
+      uses: docker/build-push-action@v2
+      with:
+        push: true
+        tags: $${{ env.IMAGE_URI }}:$${{ IMAGE_TAG }}
