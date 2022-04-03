@@ -1,0 +1,55 @@
+name: SSQL Production Deployment
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  DOCKERHUB_ID: ${{ secrets.DOCKERHUB_ID }}
+  DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+  IMAGE: ${{ secrets.IMAGE_URI }}:${{ secrets.IMAGE_TAG }}
+  SERVER_HOST: ${{ secrets.SERVER_HOST }}
+  SERVER_ID: ${{ secrets.SERVER_ID }}
+  SERVER_PW: ${{ secrets.SERVER_PW }}
+  SERVER_PORT: ${{ secrets.SERVER_PORT }}
+
+jobs:
+  build:
+    name: CI
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout 
+      uses: actions/checkout@v2
+
+    - name: Login to DockerHub
+      uses: docker/login-action@v1
+      with:
+        username: ${{ env.DOCKERHUB_ID }}
+        password: ${{ env.DOCKERHUB_TOKEN }}
+
+    - name: build and release to DockerHub
+      run: |
+        docker build -t ${{ env.IMAGE }} .
+        docker push ${{ env.IMAGE }}
+
+  deploy:
+    needs: build
+    name: CD
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Pull image and restart service
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{env.SERVER_HOST}}
+          username: ${{env.SERVER_ID}}
+          password: ${{env.SERVER_PW}}
+          port: ${{env.SERVER_PORT}}
+          script: |
+            cd ~ && \
+            docker pull ${{env.IMAGE}} && \
+            docker-compose stop ssql-server && \
+            docker-compose rm -f ssql-server && \
+            docker-compose up -d --no-deps ssql-server
