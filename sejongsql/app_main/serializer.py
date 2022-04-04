@@ -14,6 +14,7 @@ class SampleCommentSrz(serializers.ModelSerializer):
         model = SampleComment
         fields = '__all__'
 
+
 class UserSrz(serializers.ModelSerializer):
     class Meta:
         model = User

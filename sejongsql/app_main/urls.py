@@ -17,13 +17,14 @@ urlpatterns = [
         'sample/board/<int:post_id>/comment',
         sample.SampleCommentView.as_view(),
         name='sample_comment'
-    )
-]
-
-urlpatterns += [
+    ),
     path('api/auth/signup', users.SignupView.as_view(), name='signup'),
     path('api/auth/signin', users.SigninView.as_view(), name='signin'),
     path('api/v1/users/me', users.UserView.as_view(), name='users-me'),
-    path('api/v1/users/<str:user_id>', users.UserView.as_view(), name='get_my_userinfo'),
+    path(
+        'api/v1/users/<str:user_id>',
+        users.UserView.as_view(),
+        name='crud_my_userinfo'
+    ),
 
 ]
