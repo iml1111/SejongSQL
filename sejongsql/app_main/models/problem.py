@@ -1,5 +1,6 @@
 from django.db import models
-from .model import User, Class
+from .user import User
+from .classes import Class
 from .env import Env
 
 class ProblemGroup(models.Model):

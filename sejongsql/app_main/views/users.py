@@ -55,10 +55,10 @@ class SigninView(APIView):
 
         user = User.objects.filter(id=data['id']).first()
         if not user:                                   
-            return FORBIDDEN("user does not exist.")
+            return FORBIDDEN("id or pw is not correct.")
             
         if not check_password(data['pw'], user.pw):
-            return FORBIDDEN("pw is not correct.")
+            return FORBIDDEN("id or pw is not correct.")
 
         return OK({
             'access_token': create_access_token(identity=user.id),
@@ -76,7 +76,7 @@ class UserView(APIView):
 
         user = User.objects.filter(id=identity).first()
         if not user:
-            return FORBIDDEN("user does not exist.")
+            return FORBIDDEN("Bad access token.")
 
         user_srz = UserSrz(user)
         return OK(user_srz.data)
@@ -94,7 +94,7 @@ class UserView(APIView):
 
         user = User.objects.filter(id=identity).first()
         if not user:
-            return FORBIDDEN("user does not exist.")
+            return FORBIDDEN("Bad access token.")
 
         validator = Validator(
             request, path, params=[
@@ -132,7 +132,7 @@ class UserView(APIView):
 
         user = User.objects.filter(id=identity).first()
         if not user:
-            return FORBIDDEN("user does not exist.")
+            return FORBIDDEN("Bad access token.")
 
         validator = Validator(
             request, path, params=[

@@ -1,5 +1,6 @@
 from django.db import models
-from .model import User, Class
+from .user import User
+from .classes import Class
 
 class Env(models.Model):
     user_id = models.ForeignKey(User, on_delete=models.CASCADE, db_column='user_id')
