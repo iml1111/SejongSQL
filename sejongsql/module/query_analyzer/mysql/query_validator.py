@@ -78,6 +78,8 @@ if __name__ == '__main__':
     correct_query = "select * from city;"
     report = validator.check_query(query=correct_query)
     print(report)
+    if report.result is True:
+        print("좋은 쿼리네요 ㅎㅎ")
 
     # 1) 실패 예시
     incorrect1_query = "delete from city;"
