@@ -49,7 +49,7 @@ class Validator:
                 data = request.FILES.get(param.name)
 
             if data is None and param.default is not None:
-                data = default
+                data = param.default
             elif data is None and not param.optional:
                 raise ValidationFailed(
                     f'Required {param.__class__.__name__} parameter, '
