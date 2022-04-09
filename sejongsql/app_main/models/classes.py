@@ -21,3 +21,24 @@ class UserBelongClass(models.Model):
 
     class Meta:
         db_table = 'ssql_user_belong_class'
+
+    @property
+    def is_prof(self):
+        if self.type =='prof':
+            return True
+        else:
+            return False
+    
+    @property
+    def is_ta(self):
+        if self.type =='ta':
+            return True
+        else:
+            return False
+    
+    @property
+    def is_admin(self):
+        if self.type in ['prof', 'ta']:
+            return True
+        else:
+            return False
