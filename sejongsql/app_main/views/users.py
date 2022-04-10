@@ -1,10 +1,9 @@
 from rest_framework.views import APIView
 from module.response import OK, NOT_FOUND, NO_CONTENT, BAD_REQUEST, FORBIDDEN, CONFLICT, CREATED
 from module.validator import Validator, Json, Path, Header
-from app_main.models import User, UserBelongClass
+from app_main.models import User
 from app_main.serializer import UserSrz
 from django.utils import timezone
-from django.db.models import Q
 from django.contrib.auth.hashers import make_password, check_password
 from django_jwt_extended import jwt_required, create_access_token, create_refresh_token, get_jwt_identity
 
@@ -149,48 +148,3 @@ class UserView(APIView):
         
         user.delete()
         return NO_CONTENT
-
-
-class UserSearchView(APIView):
-
-    @jwt_required()
-    def get(self, request, **path):
-        """
-        사용자 검색 API
-        SA, 교수, 조교만 호출 가능
-        """
-
-        identity = get_jwt_identity(request)
-
-        user = User.objects.filter(id=identity).first()
-        if not user:
-            return FORBIDDEN("Bad access token.")
-
-        validator = Validator(
-            request, path, params=[
-                Path('user_id', str),
-            ])
-
-        if not validator.is_valid:
-            return BAD_REQUEST(validator.error_msg)
-        data = validator.data
-
-        if not user.is_admin: 
-            ubc = UserBelongClass.objects.filter(                
-                Q(user_id = identity, type = 'prof') | 
-                Q(user_id = identity, type = 'ta')
-                ).first()
-            if not ubc:
-                return FORBIDDEN("can't find class.")
-
-        obj = User.objects.filter(id=data['user_id']).first()
-        if not obj:
-            return FORBIDDEN("can't find user.")
-        
-        user_srz = UserSrz(obj)
-        return OK(user_srz)
-
-        """
-        사용자 검색 API가 존재하는 이유중 하나가 특정 분반에 추가할 사용자 검색하는 것일텐데,
-        이거 호출한 사람이 해당 분반의 교수 또는 조교인지 어떻게 알지? class_id 있어야할거같은데
-        """

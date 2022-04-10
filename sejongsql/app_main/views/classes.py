@@ -1,15 +1,17 @@
 from rest_framework.views import APIView
 from module.response import OK, NOT_FOUND, NO_CONTENT, BAD_REQUEST, FORBIDDEN, CREATED
 from module.validator import Validator, Json, Path, Header
+from module.decorator import login_required
 from app_main.models import User, Class, UserBelongClass
-from app_main.serializer import ClassSrz, UserBelongClassSrz
+from app_main.serializer import ClassSrz, SearchUserSrz, UBCSrz
 from django.db.models import F, Q
-from django_jwt_extended import jwt_required, get_jwt_identity
+from django_jwt_extended import jwt_required
 
 
 class ClassView(APIView):
 
     @jwt_required()
+    @login_required
     def get(self, request, **path):
         """
         분반 반환 API
@@ -18,12 +20,7 @@ class ClassView(APIView):
         학생일 경우, activate가 0이 아닌 분반 반환
         """
 
-        identity = get_jwt_identity(request)
-
-        user = User.objects.filter(id=identity).first()
-        if not user:
-            return FORBIDDEN("Bad access token.")
-
+        user = request.META['ssql_user']
         validator = Validator(
             request, path, params=[
                 Path('class_id', int, optional=True),
@@ -42,9 +39,28 @@ class ClassView(APIView):
                 class_srz = ClassSrz(classes)
                 return OK(class_srz.data)
 
-            ubc = UserBelongClass.objects.filter(
-                user_id = identity,
-                class_id = data['class_id'],
+            ubc = user.userbelongclass_set.filter(
+                Q(class_id=data['class_id']),
+                Q(type = 'prof') |
+                Q(type = 'ta') |
+                Q(type = 'st', class_id__activate=1)    #학생은 활성화 상태인 분반만 줌.
+                ).first()
+            if not ubc:
+                return FORBIDDEN("can't find class.")
+            
+            ubc_srz = UBCSrz(ubc).data
+            ubc_srz['classes']['type'] = ubc.type
+            return OK(ubc_srz['classes'])
+        else:
+            if user.is_admin:
+                classes = Class.objects.all()
+                class_srz = ClassSrz(classes, many=True)
+                return OK(class_srz.data)
+            
+            ubc = user.userbelongclass_set.filter(
+                Q(type = 'prof') |
+                Q(type = 'ta') |
+                Q(type = 'st', class_id__activate=1)
                 ).annotate(
                     name = F('class_id__name'),
                     semester = F('class_id__semester'),
@@ -55,30 +71,7 @@ class ClassView(APIView):
                         'semester',
                         'comment',
                         'activate',
-                        'type').first()
-            if not ubc:
-                return FORBIDDEN("can't find class.")
-
-            if ubc['type'] == 'st' and not ubc['activate']:   #학생인 경우 활성화 상태 확인
-                return FORBIDDEN("can't find class.")
-
-            return OK(ubc)
-        else:
-            if user.is_admin:
-                classes = Class.objects.all()
-                class_srz = ClassSrz(classes, many=True)
-                return OK(class_srz.data)
-
-            ubc = UserBelongClass.objects.filter(
-                Q(user_id = identity, type = 'prof') |  #교수이면 다른 분반에서도 교수임.
-                Q(user_id = identity, type = 'ta') |    #조교면 다른 분반에서는 학생일 수 있음.
-                Q(user_id = identity, type = 'st', class_id__activate=1)    #학생은 활성화 상태인 분반만 줌.
-                ).annotate(
-                    name = F('class_id__name'),
-                    semester = F('class_id__semester'),
-                    comment = F('class_id__comment'),
-                    activate = F('class_id__activate'),
-                    ). values('name', 'semester', 'comment', 'activate', 'type')
+                        'type')
             if not ubc:
                 return FORBIDDEN("can't find class.")
 
@@ -86,18 +79,14 @@ class ClassView(APIView):
 
 
     @jwt_required()
+    @login_required
     def post(self, request, **path):
         """
         분반 생성 API
         SA만 호출 가능
         """
 
-        identity = get_jwt_identity(request)
-        
-        user = User.objects.filter(id=identity).first()
-        if not user:
-            return FORBIDDEN("Bad access token.")
-
+        user = request.META['ssql_user']
         if not user.is_admin:
             return FORBIDDEN("Only SA can access.")
         
@@ -137,18 +126,14 @@ class ClassView(APIView):
     
 
     @jwt_required()
+    @login_required
     def put(self, request, **path):
         """
         분반 수정 API
         SA만 호출 가능
         """
         
-        identity = get_jwt_identity(request)
-
-        user = User.objects.filter(id=identity).first()
-        if not user:
-            return FORBIDDEN("Bad access token.")
-
+        user = request.META['ssql_user']
         if not user.is_admin:
            return FORBIDDEN("Only SA can access.")
 
@@ -182,24 +167,23 @@ class ClassView(APIView):
                 type = 'prof'
                 ).first()
             ubc.user_id = prof
-
+            ubc.save()
         classes.save()
 
         return CREATED()
         
 
     @jwt_required()
+    @login_required
     def delete(self, request, **path):
         """
         분반 삭제 API
-        SA와 교수만 호출 가능
+        SA만 호출 가능
         """
         
-        identity = get_jwt_identity(request)
-
-        user = User.objects.filter(id=identity).first()
-        if not user:
-            return FORBIDDEN("Bad access token.")
+        user = request.META['ssql_user']
+        if not user.is_admin:
+           return FORBIDDEN("Only SA can access.") 
 
         validator = Validator(
             request, path, params=[
@@ -209,16 +193,6 @@ class ClassView(APIView):
         if not validator.is_valid:
             return BAD_REQUEST(validator.error_msg)
         data = validator.data
-
-        if not user.is_admin:
-            ubc = UserBelongClass.objects.filter(
-                user_id=identity, 
-                class_id=data['class_id'],
-                ).first()
-            if not ubc:
-                return FORBIDDEN("can't find class.")
-            if not ubc.is_prof:
-                return FORBIDDEN("Only SA and prof can access.")
 
         classes = Class.objects.filter(id=data['class_id']).first()
         if not classes:
@@ -232,6 +206,7 @@ class ClassView(APIView):
 class ClassUserView(APIView):
 
     @jwt_required()
+    @login_required
     def get(self, request, **path):
         """
         특정 분반 사용자 반환 API
@@ -239,12 +214,7 @@ class ClassUserView(APIView):
         학생과 조교를 반환해줌. (교수 반환x)
         """
         
-        identity = get_jwt_identity(request)
-
-        user = User.objects.filter(id=identity).first()
-        if not user:
-            return FORBIDDEN("Bad access token.")
-
+        user = request.META['ssql_user']      
         validator = Validator(
             request, path, params=[
                 Path('class_id', int),
@@ -255,15 +225,12 @@ class ClassUserView(APIView):
         data = validator.data
 
         if not user.is_admin:    
-            ubc = UserBelongClass.objects.filter(
-                user_id=identity,
-                class_id=data['class_id'],
-                ).first()
+            ubc = user.userbelongclass_set.filter(class_id=data['class_id']).first()
             if not ubc:
                 return FORBIDDEN("can't find class.")
-            if not ubc.is_admin:                
+            if not ubc.is_admin:
                 return FORBIDDEN("student can't access.")
-
+            
         obj = UserBelongClass.objects.filter(
             class_id=data['class_id']
             ).exclude(
@@ -277,18 +244,14 @@ class ClassUserView(APIView):
 
 
     @jwt_required()
+    @login_required
     def post(self, request, **path):
         """
         특정 분반 사용자 추가 API
         SA, 교수, 조교만 호출 가능 (조교 추가시 호출한 사용자가 SA, 교수인지 검증)
         """
         
-        identity = get_jwt_identity(request)
-
-        user = User.objects.filter(id=identity).first()
-        if not user:
-            return FORBIDDEN("user does not exist.")
-
+        user = request.META['ssql_user'] 
         validator = Validator(
             request, path, params=[
                 Path('class_id', int),
@@ -300,11 +263,8 @@ class ClassUserView(APIView):
             return BAD_REQUEST(validator.error_msg)
         data = validator.data
 
-        if not user.is_admin: 
-            ubc = UserBelongClass.objects.filter(                
-                user_id=identity,
-                class_id=data['class_id'],
-                ).first()
+        if not user.is_admin:    
+            ubc = user.userbelongclass_set.filter(class_id=data['class_id']).first()
             if not ubc:
                 return FORBIDDEN("can't find class.")
             if not ubc.is_admin:
@@ -341,18 +301,14 @@ class ClassUserView(APIView):
     
 
     @jwt_required()
+    @login_required
     def delete(self, request, **path):
         """
         특정 분반 사용자 제거 API
         SA, 교수, 조교만 호출 가능 (조교 삭제시 호출한 사용자가 SA, 교수인지 검증)
         """
         
-        identity = get_jwt_identity(request)
-        
-        user = User.objects.filter(id=identity).first()
-        if not user:
-            return FORBIDDEN("Bad access token.")
-
+        user = request.META['ssql_user'] 
         validator = Validator(
             request, path, params=[
                 Path('class_id', int),
@@ -364,11 +320,8 @@ class ClassUserView(APIView):
             return BAD_REQUEST(validator.error_msg)
         data = validator.data
 
-        if not user.is_admin:
-            ubc = UserBelongClass.objects.filter(
-                user_id=identity,
-                class_id=data['class_id'],
-                ).first()
+        if not user.is_admin:    
+            ubc = user.userbelongclass_set.filter(class_id=data['class_id']).first()
             if not ubc:
                 return FORBIDDEN("can't find class.")
             if not ubc.is_admin:
@@ -390,3 +343,45 @@ class ClassUserView(APIView):
         obj.delete()
 
         return NO_CONTENT
+
+
+class UserSearchView(APIView):
+
+    @jwt_required()
+    @login_required
+    def get(self, request, **path):
+        """
+        특정 분반에서 전체 사용자 검색 API
+        SA, 교수, 조교만 호출 가능
+        """
+
+        user = request.META['ssql_user']
+        validator = Validator(
+            request, path, params=[
+                Path('class_id', int),
+                Path('user_id', str),
+            ])
+
+        if not validator.is_valid:
+            return BAD_REQUEST(validator.error_msg)
+        data = validator.data
+
+        if not user.is_admin:
+            ubc = user.userbelongclass_set.filter(class_id=data['class_id']).first()
+            if not ubc:
+                return FORBIDDEN("can't find class.")
+            if not ubc.is_admin:
+                return FORBIDDEN("student can't access.")
+
+        obj = User.objects.filter(id=data['user_id']).prefetch_related(
+            'userbelongclass_set'
+            ).first()
+        if not obj:
+            return FORBIDDEN("can't find user.")
+
+        user_srz = SearchUserSrz(obj).data
+        if obj.userbelongclass_set.filter(class_id=data['class_id']).exists():
+            user_srz['exist'] = True
+        else:
+            user_srz['exist'] = False
+        return OK(user_srz)

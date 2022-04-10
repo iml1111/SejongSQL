@@ -15,10 +15,6 @@ urlpatterns = [
         users.UserView.as_view(),
         name='crud_my_userinfo'
     ),
-    path(
-        'api/v1/users/<str:user_id>',
-        users.UserSearchView.as_view(), name='read_user'
-    ),
 
     path('api/v1/class', classes.ClassView.as_view(), name='create_class'),
     path('api/v1/class/<int:class_id>', classes.ClassView.as_view(), name='rud_class'),
@@ -31,5 +27,10 @@ urlpatterns = [
         'api/v1/class/<int:class_id>/users/<str:user_id>',
         classes.ClassUserView.as_view(),
         name='cud_class_user'
+    ),
+    path(
+        'api/v1/class/<int:class_id>/user/<str:user_id>',
+        classes.UserSearchView.as_view(),
+        name='read_all_user'
     ),
 ]

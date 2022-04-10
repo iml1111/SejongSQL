@@ -7,23 +7,18 @@ class UserSrz(serializers.ModelSerializer):
         model = User
         fields = ('id', 'name', 'role', 'created_at', 'updated_at', 'pw_updated_at')
 
+class SearchUserSrz(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ('id', 'name')
 
 class ClassSrz(serializers.ModelSerializer):
     class Meta:
         model = Class
         fields = ('name', 'semester', 'comment', 'activate')
 
-
-class UserBelongClassSrz(serializers.ModelSerializer):
+class UBCSrz(serializers.ModelSerializer):
+    classes = ClassSrz(source='class_id')
     class Meta:
         model = UserBelongClass
-        fields =('user_id','user_id__name')
-    
-    def get_my_class(self, obj):
-        return {
-            'name': obj.class_id.name,
-            'semester': obj.class_id.semester,
-            'comment': obj.class_id.comment,
-            'activate': obj.class_id.activate,
-            'type': obj.type,
-        }
+        fields = ('classes', 'type')
