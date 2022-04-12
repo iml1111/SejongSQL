@@ -24,21 +24,16 @@ class UserBelongClass(models.Model):
 
     @property
     def is_prof(self):
-        if self.type =='prof':
-            return True
-        else:
-            return False
+        return self.type =='prof'
     
     @property
     def is_ta(self):
-        if self.type =='ta':
-            return True
-        else:
-            return False
+        return self.type =='ta'
+
     
     @property
     def is_admin(self):
-        if self.type in ['prof', 'ta']:
+        if self.type in ('prof', 'ta'):
             return True
         else:
             return False

@@ -13,8 +13,5 @@ class User(models.Model):
         db_table = 'ssql_user'
 
     @property
-    def is_admin(self):
-        if self.role =='sa':
-            return True
-        else:
-            return False
+    def is_sa(self):
+        return self.role =='sa'

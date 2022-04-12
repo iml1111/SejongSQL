@@ -1,6 +1,7 @@
 from rest_framework.views import APIView
 from module.response import OK, NOT_FOUND, NO_CONTENT, BAD_REQUEST, FORBIDDEN, CONFLICT, CREATED
 from module.validator import Validator, Json, Path, Header
+from module.decorator import login_required, get_user
 from app_main.models import User
 from app_main.serializer import UserSrz
 from django.utils import timezone
@@ -69,20 +70,17 @@ class SigninView(APIView):
 class UserView(APIView):
 
     @jwt_required()
+    @login_required(False)
     def get(self, request):
         """내 정보 반환 API"""
 
-        identity = get_jwt_identity(request)
-
-        user = User.objects.filter(id=identity).first()
-        if not user:
-            return FORBIDDEN("Bad access token.")
-
+        user = get_user(request)
         user_srz = UserSrz(user)
         return OK(user_srz.data)
 
 
     @jwt_required()
+    @login_required(False)
     def put(self, request, **path):    
         """
         내 정보 수정 API
@@ -90,12 +88,7 @@ class UserView(APIView):
         만약 비밀번호 수정시, old_pw, new_pw 둘 다 필요
         """                                         
 
-        identity = get_jwt_identity(request)
-
-        user = User.objects.filter(id=identity).first()
-        if not user:
-            return FORBIDDEN("Bad access token.")
-
+        user = get_user(request)
         validator = Validator(
             request, path, params=[
                 Json('name', str, optional=True),
@@ -125,15 +118,11 @@ class UserView(APIView):
 
 
     @jwt_required()
+    @login_required(False)
     def delete(self, request, **path):
         """회원 탈퇴 API""" 
 
-        identity = get_jwt_identity(request)
-
-        user = User.objects.filter(id=identity).first()
-        if not user:
-            return FORBIDDEN("Bad access token.")
-
+        user = get_user(request)
         validator = Validator(
             request, path, params=[
                 Json('pw', str),
