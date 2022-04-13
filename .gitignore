@@ -130,3 +130,5 @@ dmypy.json
 .pyre/
 .idea/inspectionProfiles/Project_Default.xml
 .DS_Store
+
+/sejongsql/app_main/migrations
