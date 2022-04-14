@@ -15,7 +15,7 @@ class InvalidRule(Exception):
         self.param = param
 
     def __str__(self):
-        return f'{self.param} is not "callable" object.'
+        return f'{self.param} is not "ValidationRule" object.'
 
 
 class InvalidOptional(Exception):
@@ -61,3 +61,13 @@ class ValidationFailed(Exception):
 
     def __str__(self):
         return f'Parameter validation failed: {self.param}'
+
+
+class InvalidRuleParameter(Exception):
+
+    def __init__(self, param, valid_type):
+        self.param = param
+        self.valid_type = valid_type
+
+    def __str__(self):
+        return f'"{self.param}" is not {self.valid_type}'
