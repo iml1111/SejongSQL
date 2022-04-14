@@ -38,10 +38,10 @@ class PgroupView(APIView):
                 
         if st:  #학생이면 활성화된 분반만
             pgroup = ProblemGroup.objects.filter(
-                    Q(class_id=data['class_id']),
-                    Q(activate_end=None) |
-                    Q(activate_end__gt=timezone.now()) #gt(greater than) 대소비교 조건
-                    )
+                Q(class_id=data['class_id']),
+                Q(activate_end=None) |
+                Q(activate_end__gt=timezone.now()) #gt(greater than) 대소비교 조건
+            )
         else:
             pgroup = ProblemGroup.objects.filter(class_id=data['class_id'])
 
@@ -151,7 +151,7 @@ class PgroupView(APIView):
         pgroup = ProblemGroup.objects.filter(
             id=data['pgroup_id'],
             class_id=data['class_id']
-            ).first()
+        ).first()
         if not pgroup:
             return FORBIDDEN("can't find pgroup.")
         
@@ -205,7 +205,7 @@ class PgroupView(APIView):
         pgroup = ProblemGroup.objects.filter(
             id=data['pgroup_id'],
             class_id=data['class_id']
-            ).first()
+        ).first()
         if not pgroup:
             return FORBIDDEN("can't find pgroup.")
 
