@@ -98,8 +98,8 @@ class Param:
             and not isinstance(self.default, self.param_type)
         ):
             raise InvalidDefault(self.default)
-        rules = self.rules if isinstance(self.rules, list) else [self.rules]
-        for rule in rules:
+        self.rules = self.rules if isinstance(self.rules, list) else [self.rules]
+        for rule in self.rules:
             if (
                 not isinstance(rule, object)
                 and "is_valid" not in dir(rule)
