@@ -15,7 +15,7 @@ class PgroupView(APIView):
     def get(self, request, **path):
         """
         특정 분반의 문제집 목록 반환 API
-        학생일 경우, 활성화된 문제집만 반환 (시간 체크) => 코드 수정 필요
+        학생일 경우, 활성화된 문제집만 반환 (시간 체크)
         """
 
         user = get_user(request)
@@ -39,8 +39,12 @@ class PgroupView(APIView):
         if st:  #학생이면 활성화된 분반만
             pgroup = ProblemGroup.objects.filter(
                 Q(class_id=data['class_id']),
-                Q(activate_end=None) |
-                Q(activate_end__gt=timezone.now()) #gt(greater than) 대소비교 조건
+                (
+                    Q(activate_start=None) | Q(activate_start__lt=timezone.now())   #lt(less than)
+                ),
+                (
+                    Q(activate_end=None) | Q(activate_end__gt=timezone.now())   #gt(greater than)
+                )
             )
         else:
             pgroup = ProblemGroup.objects.filter(class_id=data['class_id'])
