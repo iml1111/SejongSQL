@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import sample, index, users
+from .views import sample, index, users, pgroup
 
 app_name = 'app_main'
 
@@ -27,4 +27,12 @@ urlpatterns = [
         name='crud_my_userinfo'
     ),
 
+    path('api/v1/class/<int:class_id>/pgroups',
+        pgroup.PgroupView.as_view(),
+        name='create_pgroup'
+    ),
+    path('api/v1/class/<int:class_id>/pgroups/<int:pgroup_id>',
+        pgroup.PgroupView.as_view(),
+        name='rud_pgroup'
+    ),
 ]
