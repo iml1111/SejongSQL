@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import index, users, classes
+from .views import index, users, classes, pgroup
 
 app_name = 'app_main'
 
@@ -32,5 +32,13 @@ urlpatterns = [
         'api/v1/class/<int:class_id>/user/<str:user_id>',
         classes.UserSearchView.as_view(),
         name='read_all_user'
+    ),
+    path('api/v1/class/<int:class_id>/pgroups',
+        pgroup.PgroupView.as_view(),
+        name='create_pgroup'
+    ),
+    path('api/v1/class/<int:class_id>/pgroups/<int:pgroup_id>',
+        pgroup.PgroupView.as_view(),
+        name='rud_pgroup'
     ),
 ]

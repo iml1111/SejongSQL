@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, Class, UserBelongClass
+from .models import User, Class, UserBelongClass, ProblemGroup
 
 
 class UserSrz(serializers.ModelSerializer):
@@ -33,3 +33,9 @@ class ClassInUbcSrz(serializers.Serializer):
     comment = serializers.CharField(max_length=1000)
     activate = serializers.BooleanField(default=1)
     type = serializers.CharField(max_length=100)
+
+
+class ProblemGroupSrz(serializers.ModelSerializer):
+    class Meta:
+        model = ProblemGroup
+        fields = ('id', 'name', 'exam', 'activate_start', 'activate_end')
