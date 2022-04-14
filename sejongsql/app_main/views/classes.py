@@ -1,10 +1,10 @@
 from rest_framework.views import APIView
-from module.response import OK, NOT_FOUND, NO_CONTENT, BAD_REQUEST, FORBIDDEN, CREATED
-from module.validator import Validator, Json, Path, Header
+from module.response import OK, NO_CONTENT, BAD_REQUEST, FORBIDDEN, CREATED
+from module.validator import Validator, Json, Path
 from module.decorator import login_required, sa_required, get_user
 from django_jwt_extended import jwt_required
 from app_main.models import User, Class, UserBelongClass
-from app_main.serializer import ClassSrz, SearchUserSrz, UBCSrz, UBCASrz    
+from app_main.serializer import ClassSrz, SearchUserSrz, UBCSrz, ClassInUbcSrz   
 from django.db.models import F, Q
 
 
@@ -62,25 +62,16 @@ class ClassView(APIView):
                 Q(type = 'ta') |
                 Q(type = 'st', class_id__activate=1)
             ).annotate(
-                name = F('class_id__name'),
-                semester = F('class_id__semester'),
-                comment = F('class_id__comment'),
-                activate = F('class_id__activate'),
+                name=F('class_id__name'),
+                semester=F('class_id__semester'),
+                comment=F('class_id__comment'),
+                activate=F('class_id__activate')
             )
-            # ).values(
-            #     'name',
-            #     'semester',
-            #     'comment',
-            #     'activate',
-            #     'type'
-            # )
-
-            ubcsrc = UBCASrz(ubc, many=True)
-            return OK(ubcsrc.data)
-            # if not ubc:
-            #     return FORBIDDEN("can't find class.")
-
-            # return OK(ubc)
+            if not ubc:
+                 return FORBIDDEN("can't find class.")
+            
+            ubc_srz = ClassInUbcSrz(ubc, many=True)
+            return OK(ubc_srz.data)
 
 
     @jwt_required()
@@ -231,10 +222,10 @@ class ClassUserView(APIView):
             class_id=data['class_id']
             ).exclude(
                 type='prof'
-                ).annotate(
-                    userid=F('user_id'),
-                    name=F('user_id__name'),
-                    ).values('userid', 'name', 'type', 'created_at')
+            ).annotate(
+                userid=F('user_id'),
+                name=F('user_id__name'),
+            ).values('userid', 'name', 'type', 'created_at')
 
         return OK(obj)
 
@@ -374,7 +365,7 @@ class UserSearchView(APIView):
             ).first()
         if not obj:
             return FORBIDDEN("can't find user.")
-
+        
         user_srz = SearchUserSrz(obj).data
         if obj.userbelongclass_set.filter(class_id=data['class_id']).exists():
             user_srz['exist'] = True
