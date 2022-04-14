@@ -22,3 +22,15 @@ class UBCSrz(serializers.ModelSerializer):
     class Meta:
         model = UserBelongClass
         fields = ('classes', 'type')
+
+
+class UBCASrz(serializers.Serializer):
+    name = serializers.CharField(max_length=200)
+    semester = serializers.CharField(max_length=200)
+    comment = serializers.CharField(max_length=200)
+    activate = serializers.BooleanField(default=1)
+    type = serializers.CharField(max_length=200)
+    is_prof = serializers.BooleanField()
+
+    def get_is_prof(self):
+        return type == 'prof'

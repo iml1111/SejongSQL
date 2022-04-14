@@ -4,7 +4,7 @@ from module.validator import Validator, Json, Path, Header
 from module.decorator import login_required, sa_required, get_user
 from django_jwt_extended import jwt_required
 from app_main.models import User, Class, UserBelongClass
-from app_main.serializer import ClassSrz, SearchUserSrz, UBCSrz
+from app_main.serializer import ClassSrz, SearchUserSrz, UBCSrz, UBCASrz    
 from django.db.models import F, Q
 
 
@@ -61,21 +61,26 @@ class ClassView(APIView):
                 Q(type = 'prof') |
                 Q(type = 'ta') |
                 Q(type = 'st', class_id__activate=1)
-                ).annotate(
-                    name = F('class_id__name'),
-                    semester = F('class_id__semester'),
-                    comment = F('class_id__comment'),
-                    activate = F('class_id__activate'),
-                    ).values(
-                        'name',
-                        'semester',
-                        'comment',
-                        'activate',
-                        'type')
-            if not ubc:
-                return FORBIDDEN("can't find class.")
+            ).annotate(
+                name = F('class_id__name'),
+                semester = F('class_id__semester'),
+                comment = F('class_id__comment'),
+                activate = F('class_id__activate'),
+            )
+            # ).values(
+            #     'name',
+            #     'semester',
+            #     'comment',
+            #     'activate',
+            #     'type'
+            # )
 
-            return OK(ubc)
+            ubcsrc = UBCASrz(ubc, many=True)
+            return OK(ubcsrc.data)
+            # if not ubc:
+            #     return FORBIDDEN("can't find class.")
+
+            # return OK(ubc)
 
 
     @jwt_required()
