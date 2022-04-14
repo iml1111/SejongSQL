@@ -1,23 +1,12 @@
 from django.urls import path
-from .views import sample, index, users
+from .views import index, users, classes
 
 app_name = 'app_main'
 
 # "/" 로 시작합니다.
 urlpatterns = [
     path('', index.IndexView.as_view(), name='index'),
-    path('sample', sample.SampleAPIView.as_view(), name='sample_api'),
-    path('sample/board', sample.SamplePostView.as_view(), name='sample_post'),
-    path(
-        'sample/board/<int:post_id>',
-        sample.SamplePostView.as_view(),
-        name='sample_post'
-    ),
-    path(
-        'sample/board/<int:post_id>/comment',
-        sample.SampleCommentView.as_view(),
-        name='sample_comment'
-    ),
+
     path('api/auth/signup', users.SignupView.as_view(), name='signup'),
     path('api/auth/signin', users.SigninView.as_view(), name='signin'),
     path('api/v1/users/me', users.UserView.as_view(), name='users-me'),
@@ -27,4 +16,21 @@ urlpatterns = [
         name='crud_my_userinfo'
     ),
 
+    path('api/v1/class', classes.ClassView.as_view(), name='create_class'),
+    path('api/v1/class/<int:class_id>', classes.ClassView.as_view(), name='rud_class'),
+    path(
+        'api/v1/class/<int:class_id>/users',
+        classes.ClassUserView.as_view(),
+        name='read_class_user'
+    ),
+    path(
+        'api/v1/class/<int:class_id>/users/<str:user_id>',
+        classes.ClassUserView.as_view(),
+        name='cud_class_user'
+    ),
+    path(
+        'api/v1/class/<int:class_id>/user/<str:user_id>',
+        classes.UserSearchView.as_view(),
+        name='read_all_user'
+    ),
 ]

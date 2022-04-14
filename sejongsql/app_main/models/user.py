@@ -11,3 +11,7 @@ class User(models.Model):
 
     class Meta:
         db_table = 'ssql_user'
+
+    @property
+    def is_sa(self):
+        return self.role =='sa'
