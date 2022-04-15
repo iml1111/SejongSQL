@@ -6,6 +6,7 @@ from .env import Env
 class ProblemGroup(models.Model):
     class_id = models.ForeignKey(Class, on_delete=models.CASCADE, db_column='class_id')
     name = models.CharField(max_length=100)
+    comment = models.CharField(max_length=100)
     exam = models.BooleanField(default=0)
     activate_start = models.DateTimeField(default=None, null=True)
     activate_end = models.DateTimeField(default=None, null=True)
