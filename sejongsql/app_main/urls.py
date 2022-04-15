@@ -17,7 +17,11 @@ urlpatterns = [
     ),
 
     path('api/v1/class', classes.ClassView.as_view(), name='create_class'),
-    path('api/v1/class/<int:class_id>', classes.ClassView.as_view(), name='rud_class'),
+    path(
+        'api/v1/class/<int:class_id>', 
+        classes.ClassView.as_view(), 
+        name='read_update_delete_class'
+    ),
     path(
         'api/v1/class/<int:class_id>/users',
         classes.ClassUserView.as_view(),
@@ -26,7 +30,7 @@ urlpatterns = [
     path(
         'api/v1/class/<int:class_id>/users/<str:user_id>',
         classes.ClassUserView.as_view(),
-        name='cud_class_user'
+        name='create_update_delete_class_user'
     ),
     path(
         'api/v1/class/<int:class_id>/user/<str:user_id>',
@@ -39,6 +43,6 @@ urlpatterns = [
     ),
     path('api/v1/class/<int:class_id>/pgroups/<int:pgroup_id>',
         pgroup.PgroupView.as_view(),
-        name='rud_pgroup'
+        name='read_update_delete_pgroup'
     ),
 ]

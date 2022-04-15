@@ -5,8 +5,10 @@ from module.decorator import login_required, get_user
 from app_main.models import Class, ProblemGroup
 from app_main.serializer import ProblemGroupSrz
 from django.utils import timezone
+from datetime import datetime
 from django.db.models import Q
 from django_jwt_extended import jwt_required
+
 
 class PgroupView(APIView):
 
@@ -28,27 +30,25 @@ class PgroupView(APIView):
             return BAD_REQUEST(validator.error_msg)
         data = validator.data
 
-        st = False
         if not user.is_sa:    
             ubc = user.userbelongclass_set.filter(class_id=data['class_id']).first()
             if not ubc:
                 return FORBIDDEN("can't find class.")
-            if not ubc.is_admin:
-                st = True
-                
-        if st:  #학생이면 활성화된 분반만
+
+        if user.is_sa or ubc.is_admin:
+            pgroup = ProblemGroup.objects.filter(class_id=data['class_id'])
+        else:  #학생이면 활성화된 분반만
             pgroup = ProblemGroup.objects.filter(
                 Q(class_id=data['class_id']),
                 (
-                    Q(activate_start=None) | Q(activate_start__lt=timezone.now())   #lt(less than)
+                    Q(activate_start=None) |
+                    Q(activate_start__lt=timezone.now())   #lt(less than)
                 ),
                 (
-                    Q(activate_end=None) | Q(activate_end__gt=timezone.now())   #gt(greater than)
+                    Q(activate_end=None) | 
+                    Q(activate_end__gt=timezone.now())   #gt(greater than)
                 )
             )
-        else:
-            pgroup = ProblemGroup.objects.filter(class_id=data['class_id'])
-
         if not pgroup:
             return FORBIDDEN("can't find pgroup.")
         
@@ -101,9 +101,9 @@ class PgroupView(APIView):
             return FORBIDDEN("can't find time. (exam on, activate on)")
 
         if not data['activate']:
-            data['activate_start'] = timezone.now()
-            data['activate_end'] = timezone.now()
-        #비활성화이면, 시간을 now로 줘서 만들자마자 비활성화되도록 해줌.
+            data['activate_start'] = datetime(1997,12,8,0,0,0)
+            data['activate_end'] = datetime(1997,12,8,0,0,0)
+        #비활성화이면,  불가능한 시간대로 설정
         
         pgroup = ProblemGroup(
             class_id = classes,
@@ -167,8 +167,8 @@ class PgroupView(APIView):
             return FORBIDDEN("can't find time. (exam on, activate on)")
 
         if not data['activate']:
-            data['activate_start'] = timezone.now()
-            data['activate_end'] = timezone.now()
+            data['activate_start'] = datetime(1997,12,8,0,0,0)
+            data['activate_end'] = datetime(1997,12,8,0,0,0)
 
         pgroup.name = data['name'] or pgroup.name
         pgroup.comment = data['comment'] or pgroup.comment
