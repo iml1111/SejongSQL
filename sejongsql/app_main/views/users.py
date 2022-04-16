@@ -1,6 +1,7 @@
 from rest_framework.views import APIView
 from module.response import OK, NOT_FOUND, NO_CONTENT, BAD_REQUEST, FORBIDDEN, CONFLICT, CREATED
-from module.validator import Validator, Json, Path, Header
+from module.validator import Validator, Json
+from module.rules import MaxLen, MinLen
 from module.decorator import login_required, get_user
 from app_main.models import User
 from app_main.serializer import UserSrz
@@ -15,8 +16,8 @@ class SignupView(APIView):
 
         validator = Validator(
             request, path, params=[
-                Json('id', str),
-                Json('pw', str),
+                Json('id', str, rules=[MinLen(4), MaxLen(20)]),
+                Json('pw', str, rules=MinLen(8)),
                 Json('name', str),
             ])
 
