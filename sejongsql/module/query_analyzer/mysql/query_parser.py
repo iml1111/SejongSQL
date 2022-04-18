@@ -5,10 +5,10 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class ParsedQuery:
-    origin: str
-    parsed: str
-    tables: dict
-    query_list: list
+    origin: str  # 원본 쿼리
+    parsed: str  # 파싱된 쿼리
+    tables: dict  # 추출된 테이블 명
+    query_list: list  # 파싱된 쿼리 리스트 (단일 쿼리들의 리스트)
 
 
 def parse(queries: str):
@@ -55,6 +55,8 @@ def parse(queries: str):
 if __name__ == "__main__":
     """
     -TEST STATUS-
+    a.sql (ok) -> 42 (시간 지연 체감X)
+    b.sql (ok) -> 113 (시간 지연 체감X)
     book_20200331.sql (OK) -> 149개 (시간 지연 체감X)
     demo_madang.sql (OK) -> 80개 (시간 지연 체감X)
     exec_20200526.sql (OK) -> 46 개 (시간 지연 체감X)
