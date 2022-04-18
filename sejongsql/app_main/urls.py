@@ -1,14 +1,11 @@
 from django.urls import path
 from .views import index, users, classes, pgroup, envs
 
-from .views import async_sample
-
 app_name = 'app_main'
 
 # "/" 로 시작합니다.
 urlpatterns = [
     path('', index.IndexView.as_view(), name='index'),
-    path('async-sample', async_sample.AsyncSample.as_view(), name='async_sample'),
 
     path('api/auth/signup', users.SignupView.as_view(), name='signup'),
     path('api/auth/signin', users.SigninView.as_view(), name='signin'),
@@ -18,7 +15,6 @@ urlpatterns = [
         users.UserView.as_view(),
         name='crud_my_userinfo'
     ),
-    path('api/auth/sejong', users.SejongAuthView.as_view(), name='sejong-auth'),
 
     path('api/v1/class', classes.ClassView.as_view(), name='create_class'),
     path(
@@ -58,11 +54,7 @@ urlpatterns = [
         name='delete_env'
     ),
     path('api/v1/class/<int:class_id>/envs/<int:env_id>/copy',
-        envs.MyEnvView.as_view(),
-        name='copy_env'
+        envs.EnvView.as_view(),
+        name='delete_env'
     ),
-    path('api/v1/envs',
-        envs.MyEnvView.as_view(),
-        name='read_my_env'
-    )
 ]
