@@ -1,3 +1,5 @@
+from os import name
+from unittest.util import _MAX_LENGTH
 from rest_framework import serializers
 from .models import User, Class, UserBelongClass, ProblemGroup
 
@@ -39,3 +41,11 @@ class ProblemGroupSrz(serializers.ModelSerializer):
     class Meta:
         model = ProblemGroup
         fields = ('id', 'name', 'exam', 'activate_start', 'activate_end')
+
+
+class EnvInEbcSrz(serializers.Serializer):
+    id = serializers.IntegerField()
+    owner = serializers.CharField(max_length=100)
+    name = serializers.CharField(max_length=100)
+    updated_at = serializers.DateTimeField()
+    created_at = serializers.DateTimeField()

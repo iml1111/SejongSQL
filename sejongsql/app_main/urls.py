@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import index, users, classes, pgroup
+from .views import index, users, classes, pgroup, envs
 
 app_name = 'app_main'
 
@@ -44,5 +44,17 @@ urlpatterns = [
     path('api/v1/class/<int:class_id>/pgroups/<int:pgroup_id>',
         pgroup.PgroupView.as_view(),
         name='read_update_delete_pgroup'
+    ),
+    path('api/v1/class/<int:class_id>/envs',
+        envs.EnvView.as_view(),
+        name='create_read_env'
+    ),
+    path('api/v1/class/<int:class_id>/envs/<int:env_id>',
+        envs.EnvView.as_view(),
+        name='delete_env'
+    ),
+    path('api/v1/class/<int:class_id>/envs/<int:env_id>/copy',
+        envs.EnvView.as_view(),
+        name='delete_env'
     ),
 ]
