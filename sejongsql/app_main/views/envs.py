@@ -1,19 +1,11 @@
 from rest_framework.views import APIView
 from module.response import OK, NO_CONTENT, BAD_REQUEST, FORBIDDEN, CREATED
-from module.validator import Validator, Json, Path, Form, File
+from module.validator import Validator, Path, Form, File
 from module.decorator import login_required, get_user
 from django_jwt_extended import jwt_required
-from app_main.models import User, Class, Env, EnvBelongClass, TableBelongEnv
-from app_main.serializer import (
-    ClassSrz,
-    SearchUserSrz,
-    UBCSrz,
-    ClassInUbcSrz,
-    EnvInEbcSrz
-)
-from django.db.models import F, Q
-import sqlparse
-import uuid
+from app_main.models import Class, Env, EnvBelongClass, TableBelongEnv
+from app_main.serializer import EnvInEbcSrz, EnvSrz
+from django.db.models import F
 
 
 class EnvView(APIView):
@@ -166,7 +158,20 @@ class EnvView(APIView):
         return NO_CONTENT
 
 
-class EnvCopyView(APIView):
+class MyEnvView(APIView):
+
+    @jwt_required()
+    @login_required()
+    def get(self, request, **path):
+        """
+        내 소속 Env 반환 API
+        """
+
+        user = get_user(request)
+        envs = Env.objects.filter(id=user.id)
+        envs_srz = EnvSrz(envs, many=True)
+        return OK(envs_srz.data)
+
 
     @jwt_required()
     @login_required()
@@ -198,7 +203,24 @@ class EnvCopyView(APIView):
         if not env:
             return FORBIDDEN("can't find env.")
 
+        copy_env = Env(
+            user_id=user,
+            name=env.name,
+            file_name=env.file_name,
+            #status
+        )
+        copy_env.save()
+
+        tbe = TableBelongEnv.objects.filter(id=data['env_id'])
+        for table in tbe:
+            copy_tbe = TableBelongEnv(
+                env_id=copy_env,
+                table_name=table.table_name,
+                table_nickname=table.table_nickname
+            )
+            copy_tbe.save()
         
+        return CREATED()
         
 
 #Env 생성, 삭제가 과연 관리자 전용인가?
