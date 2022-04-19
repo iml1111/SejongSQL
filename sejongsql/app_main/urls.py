@@ -54,7 +54,11 @@ urlpatterns = [
         name='delete_env'
     ),
     path('api/v1/class/<int:class_id>/envs/<int:env_id>/copy',
-        envs.EnvView.as_view(),
-        name='delete_env'
+        envs.MyEnvView.as_view(),
+        name='copy_env'
     ),
+    path('api/v1/envs',
+        envs.MyEnvView.as_view(),
+        name='read_my_env'
+    )
 ]

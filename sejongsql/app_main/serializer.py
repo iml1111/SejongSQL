@@ -1,7 +1,12 @@
-from os import name
-from unittest.util import _MAX_LENGTH
 from rest_framework import serializers
-from .models import User, Class, UserBelongClass, ProblemGroup
+from .models import (
+    User,
+    Class,
+    UserBelongClass,
+    ProblemGroup,
+    TableBelongEnv
+)
+from django.db.models import F
 
 
 class UserSrz(serializers.ModelSerializer):
@@ -49,3 +54,30 @@ class EnvInEbcSrz(serializers.Serializer):
     name = serializers.CharField(max_length=100)
     updated_at = serializers.DateTimeField()
     created_at = serializers.DateTimeField()
+    table = serializers.SerializerMethodField()
+
+    def get_table(self, obj):
+        table = TableBelongEnv.objects.filter(
+            env_id=obj.env_id
+        ).annotate(
+            name=F('table_nickname')
+        )
+        return table
+
+
+class EnvSrz(serializers.Serializer):
+    id = serializers.IntegerField()
+    owner = serializers.CharField(max_length=100)
+    name = serializers.CharField(max_length=100)
+    updated_at = serializers.DateTimeField()
+    created_at = serializers.DateTimeField()
+    table = serializers.SerializerMethodField()
+
+    def get_table(self, obj):
+        table = TableBelongEnv.objects.filter(
+            env_id=obj.id
+        ).annotate(
+            name=F('table_nickname')
+        )
+        return table
+        
