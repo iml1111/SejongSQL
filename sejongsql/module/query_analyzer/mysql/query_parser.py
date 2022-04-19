@@ -1,14 +1,22 @@
+"""
+SQL File Parser 모듈
+"""
 import sqlparse
 from uuid import uuid4
-from dataclasses import dataclass
+from collections import namedtuple
 
 
-@dataclass(frozen=True)
-class ParsedQuery:
-    origin: str  # 원본 쿼리
-    parsed: str  # 파싱된 쿼리
-    tables: dict  # 추출된 테이블 명
-    query_list: list  # 파싱된 쿼리 리스트 (단일 쿼리들의 리스트)
+ParsedQuery = namedtuple(
+    'Parsed',
+    [
+        'result',  # 진행 결과 True(성공) / False(실패)
+        'origin',  # 원본 쿼리
+        'parsed',  # 파싱된 쿼리
+        'tables',  # 추출된 테이블 명
+        'query_list'  # 파싱된 쿼리 리스트 (단일 쿼리들)
+    ]
+)
+Report = namedtuple('Report', ['result', 'msg'])
 
 
 def parse(queries: str):
@@ -22,11 +30,10 @@ def parse(queries: str):
             for token in statement.tokens:
                 if (
                     str(token.ttype) == "Token.Keyword"
-                    and token.value.upper() in {'TABLE', 'INDEX'}
+                    and token.value.upper() in ('TABLE', 'INDEX')
                 ):
                     result.append(statement.value.strip())
-                    if token.value == 'TABLE':
-                        table_flag = True
+                    table_flag = token.value == 'TABLE'
                     break
 
             # 테이블명 추출
@@ -38,13 +45,17 @@ def parse(queries: str):
                             tables[token.value] = uid
                             tables[uid] = token.value
                         else:  # Overlap detected !
-                            return None
+                            return Report(
+                                result=False,
+                                msg='Duplicate table detected.'
+                            )
                         break
 
         elif statement_type == 'INSERT':
             result.append(statement.value.strip())
 
     return ParsedQuery(
+        result=True,
         origin=queries,
         parsed='\n'.join(result),
         tables=tables,
