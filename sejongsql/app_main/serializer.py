@@ -49,9 +49,10 @@ class ProblemGroupSrz(serializers.ModelSerializer):
 
 
 class EnvInEbcSrz(serializers.Serializer):
-    id = serializers.IntegerField()
+    env_id = serializers.IntegerField()
     owner = serializers.CharField(max_length=100)
     name = serializers.CharField(max_length=100)
+    share = serializers.IntegerField()
     updated_at = serializers.DateTimeField()
     created_at = serializers.DateTimeField()
     table = serializers.SerializerMethodField()
