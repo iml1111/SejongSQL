@@ -4,6 +4,7 @@ from rest_framework.views import APIView
 from module.response import OK, NO_CONTENT, BAD_REQUEST, FORBIDDEN, CREATED
 from module.validator import Validator, Path, Form, File
 from module.decorator import login_required, get_user
+from module.query_analyzer.mysql.query_parser import parse
 from django_jwt_extended import jwt_required
 from app_main.models import Class, Env, EnvBelongClass, TableBelongEnv
 from app_main.serializer import EnvInEbcSrz, EnvSrz
@@ -95,10 +96,13 @@ class EnvView(APIView):
         if not classes:
             return FORBIDDEN("can't find class.")
 
-        query = data['file'].read().decode('utf-8')
+        try:
+            query = data['file'].read().decode('utf-8')
+        except:
+            return FORBIDDEN("Incorrect sql file.")
         
-        result = SqlParser(query)
-
+        result = parse(query)
+        
         env = Env(
             user_id=user,
             name=data['name'],
@@ -110,36 +114,45 @@ class EnvView(APIView):
         ebc = EnvBelongClass(
             env_id=env,
             class_id=classes,
-            share=data['share'] or None
+            share=data['share'] or 1
         )
         ebc.save()
 
-        for nickname, name in result.get_tables().items():
+        for nickname, name in result.tables.items():
             tbe = TableBelongEnv(
                 env_id=env,
                 table_name=name,
                 table_nickname=nickname
             )
             tbe.save()
-
+        
         db = connect(
             host=os.environ['SSQL_ORIGIN_MYSQL_HOST'],
-            port=os.environ['SSQL_ORIGIN_MYSQL_PORT'],
+            port=int(os.environ['SSQL_ORIGIN_MYSQL_PORT']),
             user=os.environ['SSQL_ORIGIN_MYSQL_USER'],
             passwd=os.environ['SSQL_ORIGIN_MYSQL_PASSWORD'],
             charset='utf8mb4',
-            db=os.environ['SSQL_ENVRION_MYSQL_DB_NAME=environ'],
+            db=os.environ['SSQL_ENVRION_MYSQL_DB_NAME'],
             cursorclass=cursors.DictCursor
         )   #아마 모듈화 해야하지 않을까..
 
         tbe = TableBelongEnv.objects.filter(id=env.id)
-        with db.cursor() as cursor:
+
+        print(result.parsed)       
+        for query in result.query_list:
+            for table in result.tables:
+                if table in query:
+                    query = query.replace()
             
-            cursor.commit()
+
+
+#        with db.cursor() as cursor:
+#            cursor.execute(query)
 
         return CREATED()
 #Env 생성하면서 Environ DB에 실제 테이블 넣어주기
-    
+
+
     @jwt_required()
     @login_required()
     def delete(self, request, **path):
@@ -263,7 +276,7 @@ class MyEnvView(APIView):
             user=os.environ['SSQL_ORIGIN_MYSQL_USER'],
             passwd=os.environ['SSQL_ORIGIN_MYSQL_PASSWORD'],
             charset='utf8mb4',
-            db=os.environ['SSQL_ENVRION_MYSQL_DB_NAME=environ'],
+            db=os.environ['SSQL_ENVRION_MYSQL_DB_NAME'],
             cursorclass=cursors.DictCursor
         )   #아마 모듈화 해야하지 않을까..
 

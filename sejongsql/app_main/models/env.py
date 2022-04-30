@@ -5,6 +5,8 @@ from .classes import Class
 class Env(models.Model):
     user_id = models.ForeignKey(User, on_delete=models.CASCADE, db_column='user_id')
     name = models.CharField(max_length=100)
+    file_name = models.CharField(max_length=100)
+    status = models.CharField(max_length=100, default='작업중')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
