@@ -164,10 +164,11 @@ class SejongAuthView(APIView):
             id=data['sejong_id'],
             password=data['sejong_pw']
         )
-        if not sejong_auth.success:
+        if (not sejong_auth.success
+            or sejong_auth.is_auth is None):
             return UNAUTHORIZED("Sejong University Server Error.")
 
-        if not sejong_auth.is_auth:
+        if sejong_auth.is_auth is False:
             return FORBIDDEN("Sejong ID or PW is incorrect.")
 
         user.sejong_id = data['sejong_id']
