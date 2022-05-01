@@ -7,6 +7,7 @@ from rest_framework.status import (
     HTTP_401_UNAUTHORIZED,
     HTTP_403_FORBIDDEN,
     HTTP_404_NOT_FOUND,
+    HTTP_409_CONFLICT,
 )
 
 def OK(result=None):
@@ -74,4 +75,15 @@ NOT_FOUND = Response(
         'description': "Resource not found."
     },
     status=HTTP_404_NOT_FOUND,
+)
+
+CONFLICT = (
+    lambda desc: Response(
+        {
+            'msg': 'fail',
+            'error_code': 'conflict',
+            'description': desc
+        },
+        status = HTTP_409_CONFLICT
+    )
 )

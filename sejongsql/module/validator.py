@@ -49,7 +49,7 @@ class Validator:
                 data = request.FILES.get(param.name)
 
             if data is None and param.default is not None:
-                data = default
+                data = param.default
             elif data is None and not param.optional:
                 raise ValidationFailed(
                     f'Required {param.__class__.__name__} parameter, '
@@ -66,11 +66,13 @@ class Validator:
                 )
             if (
                 data is not None
-                and not param.rule(data)
+                and param.rules[0] is not None
             ):
-                raise ValidationFailed(
-                    f'Parameter <{param.name}>: Rule rejected. '
-                )
+                for rule in param.rules:
+                    if not rule.is_valid(data):
+                        raise ValidationFailed(
+                            f"'{param.name}' {rule.invalid_str()}"
+                        )
             parsed_input[param.name] = data
 
         return parsed_input
@@ -78,11 +80,11 @@ class Validator:
 
 @dataclass
 class Param:
-    name: str # 파라미터 이름
-    param_type: type = None # type 오브젝트 or None
+    name: str  # 파라미터 이름
+    param_type: type = None  # type 오브젝트 or None
     default: Any = None  # param_type을 가진 오브젝트 or None
-    rule: Callable = lambda x: True # Bool을 반환하는 함수
-    optional: bool = False # True or False
+    rules: Any = None  # is_valid 매소드를 가진 오브젝트 or 해당 오브젝트 list
+    optional: bool = False  # True or False
 
     def validate(self):
         if (
@@ -96,8 +98,13 @@ class Param:
             and not isinstance(self.default, self.param_type)
         ):
             raise InvalidDefault(self.default)
-        if not callable(self.rule):
-            raise InvalidRule(self.rule)
+        self.rules = self.rules if isinstance(self.rules, list) else [self.rules]
+        for rule in self.rules:
+            if (
+                not isinstance(rule, object)
+                and "is_valid" not in dir(rule)
+            ):
+                raise InvalidRule(rule)
         if not isinstance(self.optional, bool):
             raise InvalidOptional(self.optional)
 
