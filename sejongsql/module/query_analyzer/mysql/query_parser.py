@@ -10,15 +10,15 @@ ParsedQuery = namedtuple(
     [
         'result',  # 진행 결과 True(성공) / False(실패)
         'origin',  # 원본 쿼리
-        'parsed_query',  # 파싱된 쿼리 결과 (리스트)
-        'tables'  # 추출된 테이블 명
+        'tables',  # 추출된 테이블 명
+        'parsed_list'  # 파싱된 쿼리 결과 (리스트)
     ]
 )
 Report = namedtuple('Report', ['result', 'msg'])
 
 
 def parse(queries: str):
-    parsed_query = []
+    result = []
     tables = []
     for statement in sqlparse.parse(queries):
         statement_type = statement.get_type().upper()
@@ -30,7 +30,7 @@ def parse(queries: str):
                     str(token.ttype) == "Token.Keyword"
                     and token.value.upper() in ('TABLE', 'INDEX')
                 ):
-                    parsed_query.append(statement.value.strip())
+                    result.append(statement.value.strip())
                     table_flag = token.value == 'TABLE'
                     break
 
@@ -48,13 +48,13 @@ def parse(queries: str):
                         break
 
         elif statement_type == 'INSERT':
-            parsed_query.append(statement.value.strip())
+            result.append(statement.value.strip())
 
     return ParsedQuery(
         result=True,
         origin=queries,
         tables=tables,
-        parsed_query=result
+        parsed_list=result
     )
 
 
@@ -74,7 +74,7 @@ if __name__ == "__main__":
         test = parse(queries)
         if test:
             # print(test.origin)
-            print(test.parsed_query)
+            print(test.parsed_list)
             # print(test.tables)
 
     import os
@@ -91,7 +91,7 @@ if __name__ == "__main__":
 
     # 한번에 실행
     with db.cursor() as cursor:
-        cursor.execute(test.parsed_query)
+        cursor.execute(test.parsed_list)
 
     # 한줄씩 테스팅
     # for query in test.query_list:ß
