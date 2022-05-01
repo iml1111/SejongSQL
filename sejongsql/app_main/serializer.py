@@ -1,5 +1,12 @@
 from rest_framework import serializers
-from .models import User, Class, UserBelongClass, ProblemGroup
+from .models import (
+    User,
+    Class,
+    UserBelongClass,
+    ProblemGroup,
+    TableBelongEnv
+)
+from django.db.models import F
 
 
 class UserSrz(serializers.ModelSerializer):
@@ -39,3 +46,39 @@ class ProblemGroupSrz(serializers.ModelSerializer):
     class Meta:
         model = ProblemGroup
         fields = ('id', 'name', 'exam', 'activate_start', 'activate_end')
+
+
+class EnvInEbcSrz(serializers.Serializer):
+    env_id = serializers.IntegerField()
+    owner = serializers.CharField(max_length=100)
+    name = serializers.CharField(max_length=100)
+    share = serializers.IntegerField()
+    updated_at = serializers.DateTimeField()
+    created_at = serializers.DateTimeField()
+    table = serializers.SerializerMethodField()
+
+    def get_table(self, obj):
+        table = TableBelongEnv.objects.filter(
+            env_id=obj.env_id
+        ).annotate(
+            name=F('table_nickname')
+        )
+        return table
+
+
+class EnvSrz(serializers.Serializer):
+    id = serializers.IntegerField()
+    owner = serializers.CharField(max_length=100)
+    name = serializers.CharField(max_length=100)
+    updated_at = serializers.DateTimeField()
+    created_at = serializers.DateTimeField()
+    table = serializers.SerializerMethodField()
+
+    def get_table(self, obj):
+        table = TableBelongEnv.objects.filter(
+            env_id=obj.id
+        ).annotate(
+            name=F('table_nickname')
+        )
+        return table
+        

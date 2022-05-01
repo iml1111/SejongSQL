@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import index, users, classes, pgroup
+from .views import index, users, classes, pgroup, envs
 
 app_name = 'app_main'
 
@@ -15,6 +15,7 @@ urlpatterns = [
         users.UserView.as_view(),
         name='crud_my_userinfo'
     ),
+    path('api/auth/sejong', users.SejongAuthView.as_view(), name='sejong-auth'),
 
     path('api/v1/class', classes.ClassView.as_view(), name='create_class'),
     path(
@@ -45,4 +46,20 @@ urlpatterns = [
         pgroup.PgroupView.as_view(),
         name='read_update_delete_pgroup'
     ),
+    path('api/v1/class/<int:class_id>/envs',
+        envs.EnvView.as_view(),
+        name='create_read_env'
+    ),
+    path('api/v1/class/<int:class_id>/envs/<int:env_id>',
+        envs.EnvView.as_view(),
+        name='delete_env'
+    ),
+    path('api/v1/class/<int:class_id>/envs/<int:env_id>/copy',
+        envs.MyEnvView.as_view(),
+        name='copy_env'
+    ),
+    path('api/v1/envs',
+        envs.MyEnvView.as_view(),
+        name='read_my_env'
+    )
 ]
