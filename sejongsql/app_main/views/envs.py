@@ -133,29 +133,12 @@ class EnvView(APIView):
         for query in result.parsed_query:
             for table in result.tables:
                 if table in query:
-                    query = query.replace(table, )
+                    query = query.replace(table, parsed_table[table])
                     break
-
-
-
-
-        db = connect(
-            host=os.environ['SSQL_ORIGIN_MYSQL_HOST'],
-            port=int(os.environ['SSQL_ORIGIN_MYSQL_PORT']),
-            user=os.environ['SSQL_ORIGIN_MYSQL_USER'],
-            passwd=os.environ['SSQL_ORIGIN_MYSQL_PASSWORD'],
-            charset='utf8mb4',
-            db=os.environ['SSQL_ENVRION_MYSQL_DB_NAME'],
-            cursorclass=cursors.DictCursor
-        )   #아마 모듈화 해야하지 않을까..
+            f.write(query)
+        f.close()
 
         tbe = TableBelongEnv.objects.filter(id=env.id)
-
-            with db.cursor() as cursor:
-                cursor.execute(query)        
-
-#        with db.cursor() as cursor:
-#            cursor.execute(query)
 
         return CREATED()
 #Env 생성하면서 Environ DB에 실제 테이블 넣어주기
@@ -194,7 +177,7 @@ class EnvView(APIView):
 
         db = connect(
             host=os.environ['SSQL_ORIGIN_MYSQL_HOST'],
-            port=os.environ['SSQL_ORIGIN_MYSQL_PORT'],
+            port=int(os.environ['SSQL_ORIGIN_MYSQL_PORT']),
             user=os.environ['SSQL_ORIGIN_MYSQL_USER'],
             passwd=os.environ['SSQL_ORIGIN_MYSQL_PASSWORD'],
             charset='utf8mb4',
