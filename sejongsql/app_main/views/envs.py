@@ -118,10 +118,10 @@ class EnvView(APIView):
         )
         ebc.save()
 
-        for nickname, name in result.tables.items():
+        for nickname in result.tables:
             tbe = TableBelongEnv(
                 env_id=env,
-                table_name=name,
+                table_name=uuid4(),
                 table_nickname=nickname
             )
             tbe.save()
@@ -138,13 +138,14 @@ class EnvView(APIView):
 
         tbe = TableBelongEnv.objects.filter(id=env.id)
 
-        print(result.parsed)       
-        for query in result.query_list:
+        for query in result.parsed_query:
             for table in result.tables:
                 if table in query:
-                    query = query.replace()
-            
+                    query = query.replace(table, )
+                    break
 
+            with db.cursor() as cursor:
+                cursor.execute(query)        
 
 #        with db.cursor() as cursor:
 #            cursor.execute(query)
