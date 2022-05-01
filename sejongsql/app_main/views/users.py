@@ -8,6 +8,8 @@ from app_main.serializer import UserSrz
 from django.utils import timezone
 from django.contrib.auth.hashers import make_password, check_password
 from django_jwt_extended import jwt_required, create_access_token, create_refresh_token, get_jwt_identity
+from sejong_univ_auth import auth
+
 
 class SignupView(APIView):
 
@@ -138,3 +140,37 @@ class UserView(APIView):
         
         user.delete()
         return NO_CONTENT
+
+
+class SejongAuthView(APIView):
+
+    @jwt_required()
+    @login_required(False)
+    def post(self, request, **path):
+        """세종대학교 구성원 API"""
+
+        user = get_user(request)
+        validator = Validator(
+            request, path, params=[
+                Json('sejong_id', str),
+                Json('sejong_pw', str),
+            ])
+
+        if not validator.is_valid:
+            return BAD_REQUEST(validator.error_msg)
+        data = validator.data
+
+        sejong_auth = auth(
+            id=data['sejong_id'],
+            password=data['sejong_pw']
+        )
+        if not sejong_auth.success:
+            return FORBIDDEN("Sejong University Server Error.")
+
+        if not sejong_auth.is_auth:
+            return FORBIDDEN("Sejong Auth is incorrect.")
+
+        user.sejong_id = data['sejong_id']
+        user.save()
+
+        return CREATED()
