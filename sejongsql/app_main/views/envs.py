@@ -118,6 +118,7 @@ class EnvView(APIView):
         )
         ebc.save()
 
+        parsed_table = {}
         for nickname in result.tables:
             tbe = TableBelongEnv(
                 env_id=env,
@@ -125,7 +126,19 @@ class EnvView(APIView):
                 table_nickname=nickname
             )
             tbe.save()
+            parsed_table[nickname]= tbe.table_name
         
+        f = open(f"/sql_file/{user.id}{data['file'].name}.sql", 'w')
+
+        for query in result.parsed_query:
+            for table in result.tables:
+                if table in query:
+                    query = query.replace(table, )
+                    break
+
+
+
+
         db = connect(
             host=os.environ['SSQL_ORIGIN_MYSQL_HOST'],
             port=int(os.environ['SSQL_ORIGIN_MYSQL_PORT']),
@@ -137,12 +150,6 @@ class EnvView(APIView):
         )   #아마 모듈화 해야하지 않을까..
 
         tbe = TableBelongEnv.objects.filter(id=env.id)
-
-        for query in result.parsed_query:
-            for table in result.tables:
-                if table in query:
-                    query = query.replace(table, )
-                    break
 
             with db.cursor() as cursor:
                 cursor.execute(query)        
