@@ -1,5 +1,5 @@
 from rest_framework.views import APIView
-from module.response import OK, NOT_FOUND, NO_CONTENT, BAD_REQUEST, FORBIDDEN, CONFLICT, CREATED
+from module.response import OK, UNAUTHORIZED, NO_CONTENT, BAD_REQUEST, FORBIDDEN, CONFLICT, CREATED
 from module.validator import Validator, Json
 from module.rules import MaxLen, MinLen
 from module.decorator import login_required, get_user
@@ -165,10 +165,10 @@ class SejongAuthView(APIView):
             password=data['sejong_pw']
         )
         if not sejong_auth.success:
-            return FORBIDDEN("Sejong University Server Error.")
+            return UNAUTHORIZED("Sejong University Server Error.")
 
         if not sejong_auth.is_auth:
-            return FORBIDDEN("Sejong Auth is incorrect.")
+            return FORBIDDEN("Sejong ID or PW is incorrect.")
 
         user.sejong_id = data['sejong_id']
         user.save()
