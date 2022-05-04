@@ -1,5 +1,5 @@
 """멀티프로세싱 관리 큐"""
-from multiprocessing import Queue
+from multiprocessing import Queue, Process
 from module.async_queue.base import SingletonInstane
 
 
