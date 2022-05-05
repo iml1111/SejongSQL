@@ -8,6 +8,8 @@ class Task:
         if not isinstance(func, FunctionType):
             raise RuntimeError(f'{func} is not FunctionType.')
         self.func = func
+        self.args = tuple()
+        self.kwargs = dict()
 
     def __call__(self, *args, **kwargs):
         self.args = args
