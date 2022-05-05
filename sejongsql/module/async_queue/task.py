@@ -2,7 +2,7 @@ from typing import Callable
 from types import FunctionType
 
 
-class frozen:
+class Task:
 
     def __init__(self, func: Callable):
         if not isinstance(func, FunctionType):
@@ -15,14 +15,18 @@ class frozen:
         return self
 
     def execute(self):
-        return self.func(*self.args, *self.kwargs)
+        return self.func(*self.args, **self.kwargs)
+
+
+def freeze(func: Callable):
+    return Task(func)
 
 
 if __name__ == '__main__':
 
-    def function(a, b):
+    def func(a, b):
         print(a + b)
 
-    t = frozen(function)(1, 2)
+    t = freeze(func)(a=1, b=2)
     t.execute()
     t.execute()
