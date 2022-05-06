@@ -58,6 +58,7 @@ class AsyncQueue(SingletonInstane):
                     target=self._work,
                     args=(self._sem_queue,)
                 )
+                self._workers[idx].start()
 
     @staticmethod
     def _work(queue: Queue):
