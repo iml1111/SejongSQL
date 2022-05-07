@@ -15,7 +15,6 @@ urlpatterns = [
         users.UserView.as_view(),
         name='crud_my_userinfo'
     ),
-    path('api/auth/sejong', users.SejongAuthView.as_view(), name='sejong-auth'),
 
     path('api/v1/class', classes.ClassView.as_view(), name='create_class'),
     path(
