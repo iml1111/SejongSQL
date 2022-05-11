@@ -39,6 +39,9 @@ def parse(queries: str):
                 for token in statement.tokens:
                     if type(token).__name__ == 'Identifier':
                         if token.value not in tables:
+                            check = ('`', '"', "'")
+                            if token.value[0] in check and token.value[-1] in check:
+                                token.value = token.value[1:-1]
                             tables.append(token.value)
                         else:  # Overlap detected !
                             return Report(
