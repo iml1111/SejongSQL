@@ -49,7 +49,7 @@ class ProblemGroupSrz(serializers.ModelSerializer):
 
 
 class EnvInEbcSrz(serializers.Serializer):
-    env_id = serializers.IntegerField()
+    envid = serializers.IntegerField()
     owner = serializers.CharField(max_length=100)
     name = serializers.CharField(max_length=100)
     share = serializers.IntegerField()
@@ -62,12 +62,12 @@ class EnvInEbcSrz(serializers.Serializer):
             env_id=obj.env_id
         ).annotate(
             name=F('table_nickname')
-        )
-        return table
+        ).values_list('name')
+        return [key[0] for key in table]
 
 
 class EnvSrz(serializers.Serializer):
-    id = serializers.IntegerField()
+    envid = serializers.IntegerField()
     owner = serializers.CharField(max_length=100)
     name = serializers.CharField(max_length=100)
     updated_at = serializers.DateTimeField()
@@ -79,6 +79,6 @@ class EnvSrz(serializers.Serializer):
             env_id=obj.id
         ).annotate(
             name=F('table_nickname')
-        )
-        return table
+        ).values_list('name')
+        return [key[0] for key in table]
         

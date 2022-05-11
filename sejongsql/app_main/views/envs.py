@@ -2,8 +2,7 @@ from rest_framework.views import APIView
 from module.response import OK, NO_CONTENT, BAD_REQUEST, FORBIDDEN, CREATED
 from module.validator import Validator, Path, Form, File
 from module.decorator import login_required, get_user
-from module.environ import connect_to_environ
-from module.query_analyzer.mysql.query_parser import parse
+from module.environ import connect_to_environ, create_env
 from django_jwt_extended import jwt_required
 from app_main.models import Class, Env, EnvBelongClass, TableBelongEnv
 from app_main.serializer import EnvInEbcSrz, EnvSrz
@@ -11,6 +10,7 @@ from django.db.models import F
 from uuid import uuid4
 import shutil
 import re
+from module.async_queue import get_async_queue, freeze
 
 class EnvView(APIView):
 
@@ -19,7 +19,6 @@ class EnvView(APIView):
     def get(self, request, **path):
         """
         분반 소속 Env 반환 API
-        SA, 교수, 조교 호출 가능
         """
 
         user = get_user(request)
@@ -36,12 +35,12 @@ class EnvView(APIView):
             ubc = user.userbelongclass_set.filter(class_id=data['class_id']).first()
             if not ubc:
                 return FORBIDDEN("can't find class.")
-            if not ubc.is_admin:
-                return FORBIDDEN("student can't access.")
         
-        envs = EnvBelongClass.objects.filter(
+        envs = EnvBelongClass.objects.filter(   #성공한 env만 반환
             class_id=data['class_id'],
+            env_id__result='success'
         ).annotate(
+            envid=F('env_id__id'),
             owner=F('env_id__user_id'),
             name=F('env_id__name'),
             updated_at=F('env_id__updated_at'),
@@ -59,7 +58,7 @@ class EnvView(APIView):
         Env 생성 API
         SA, 교수, 조교 호출 가능
         """
-        #utf-8로 디코딩 했을 때 터지거나, 좆같은 값이 나오면 내가 쳐내야함.
+
         user = get_user(request)
         validator = Validator(
             request, path, params=[
@@ -89,105 +88,15 @@ class EnvView(APIView):
         except:
             return FORBIDDEN("Incorrect sql file.")
 
-        result = parse(query)   #sql query 파싱
-        if not result.result:
-            return FORBIDDEN("Incorrect sql file.")
-        
-        env = Env(
-            user_id=user,
-            name=data['name'],
-            file_name=f"{uuid4()}_{data['file'].name}"
-        )
-        env.save()
-
-        ebc = EnvBelongClass(
-            env_id=env,
-            class_id=classes,
-            share=data['share'] or 1
-        )
-        ebc.save()
-
-        parsed_table = {}
-        for nickname in result.tables:
-            uuid = str(uuid4())
-            uuid = uuid.replace('-', '_')   #table_name으로 사용할 uuid 파싱
-            tbe = TableBelongEnv(
-                env_id=env,
-                table_name=f'ssql_{uuid}',
-                table_nickname=nickname
-            )
-            tbe.save()
-            parsed_table[nickname]= tbe.table_name
-
-        re_create = re.compile("CREATE\s*TABLE\s*(\`.*?\`|\'.*?\'|\".*?\"|.*?(?=\(|\s))", re.I)
-        re_insert = re.compile("INSERT\s*INTO\s*(\`.*?\`|\'.*?\'|\".*?\"|.*?(?=\(|\s))", re.I)
-        re_con = re.compile("CONSTRAINT\s*(\`.*?\`|\'.*?\'|\".*?\"|.*?(?=\(|\s))", re.I)
-        re_refer = re.compile("REFERENCES\s*(\`.*?\`|\'.*?\'|\".*?\"|.*?(?=\(|\s))", re.I)
-        
-        #정민이한테 parser 통과 못하는거 뭐뭐 있는지 물어보기
-        #ex) create table 소문자는 통과 안됨.
-
-        f = open(f"./sql_file/success/{env.file_name}", 'w', encoding='utf-8')
-        try:
-            for query in result.parsed_list:
-                create_table = re_create.findall(query)
-                insert_into = re_insert.findall(query)
-                constraint = re_con.findall(query)
-                reference = re_refer.findall(query)
-
-                for keyword in create_table:
-                    query = query.replace(keyword, parsed_table[keyword])
-                
-                for keyword in insert_into:
-                    query = query.replace(keyword, parsed_table[keyword])
-
-                for keyword in constraint:
-                    re_ibfk = re.compile("[a-zA-Zㄱ-ㅎ|가-힣|0-9]", re.I)
-                    ibfk = re_ibfk.findall(keyword)
-                    query = query.replace(keyword, f"{''.join(ibfk)}{env.id}") #foreignkey name이 unique 해야함.
-
-                for keyword in reference:
-                    query = query.replace(keyword, parsed_table[keyword])
-                
-                f.write(query + '\n')
-            f.close()
-        except:
-            f.close()
-            env.status = '실패'
-            env.save()
-            shutil.move(
-                f"./sql_file/success/{env.file_name}",
-                f"./sql_file/fail/{env.file_name}"
-            )   #실패한 sql 파일집으로 이동
-            return FORBIDDEN("Incorrect sql file.")
-
-        #env queue에서 성공, 진행중, 실패를 알려줄건데, 만약 실패하면 실패한 env는 그대로 살아있는건가? 어디서 실패했는지 찾으려면 살아있어야할듯
-                
-        f = open(f"./sql_file/success/{env.file_name}", 'r', encoding='utf-8')
-
-        db = connect_to_environ()
-        cur = db.cursor()
-
-        queries = f.read()
-        try:
-            cur.execute(queries)
-            env.status = '성공'
-            env.save()
-        except:
-            #env.delete()
-            env.status = '실패'
-            env.save()
-            cur.close()
-            db.close()
-            f.close()
-            shutil.move(
-                f"./sql_file/success/{env.file_name}",
-                f"./sql_file/fail/{env.file_name}"
-            )
-            return FORBIDDEN("Incorrect sql file.")
-        cur.close()
-        db.close()
-        f.close()
+        q = get_async_queue(worker_num=3, qsize=100)
+        q.add(freeze(create_env)(
+            user=user,
+            classes=classes,
+            query=query,
+            env_name=data['name'],
+            file_name=data['file'].name,
+            share=data['share']
+        ))
 
         return CREATED()
 
@@ -225,16 +134,18 @@ class EnvView(APIView):
 
         db = connect_to_environ()
 
-        tbe = TableBelongEnv.objects.filter(id=env.id)
+        tbe = TableBelongEnv.objects.filter(env_id=env.id)
         with db.cursor() as cursor:
             for table in tbe:
-                cursor.execute(f"delete from {table.table_name}")
+                cursor.execute(f"SET foreign_key_checks = 0;")
+                cursor.execute(f"DROP TABLE {table.table_name};")
+                cursor.execute(f"SET foreign_key_checks = 1;")  #foreign key 무시하고 테이블 삭제
             db.commit()
 
         env.delete()
         
         return NO_CONTENT
-#Env 삭제하면 Environ DB에 있는 실제 테이블들도 삭제해주지? yes
+
 
 class MyEnvView(APIView):
 
@@ -246,7 +157,12 @@ class MyEnvView(APIView):
         """
 
         user = get_user(request)
-        envs = Env.objects.filter(id=user.id)
+        envs = Env.objects.filter(  #성공, 실패 상관없이 반환
+            user_id=user.id,
+        ).annotate(
+            envid=F('id'),
+            owner=F('user_id')
+        )
         envs_srz = EnvSrz(envs, many=True)
         return OK(envs_srz.data)
 
@@ -256,13 +172,12 @@ class MyEnvView(APIView):
     def post(self, request, **path):
         """
         Env 복사 API
-        SA, 교수, 조교 호출 가능
+        SA, 교수, 조교 호출 가능 
         """
-
+        #학생도 가능하게 수정
         user = get_user(request)
         validator = Validator(
             request, path, params=[
-                Path('class_id', int),
                 Path('env_id', int)
             ])
 
@@ -270,58 +185,68 @@ class MyEnvView(APIView):
             return BAD_REQUEST(validator.error_msg)
         data = validator.data
 
-        if not user.is_sa:
-            ubc = user.userbelongclass_set.filter(class_id=data['class_id']).first()
-            if not ubc:
-                return FORBIDDEN("can't find class.")
-            if not ubc.is_admin:
-                return FORBIDDEN("student can't access.")
-
-        env = Env.objects.filter(id=data['env_id']).prefetch_related(   #복사할 env
-            'envbelongclass_set'
+        env = Env.objects.filter(   #복사할 env
+            id=data['env_id'],
+            result='success'
         ).filter(
-            share=1     #공유허가된 env만 복사 가능
+            envbelongclass__class_id=data['class_id'],   #해당 분반에 있는 env만 복사 가능
+            envbelongclass__share=1    #공유허가된 env만 복사 가능
         ).first()
         if not env:
             return FORBIDDEN("can't find env.")
-
+        
         file_name = str(env.file_name)
-        file_name = file_name.replace(env.user_id, user.id)
+        file_name = file_name.replace(file_name[:36], str(uuid4()))
+        #uuid는 36자리
+    
         copy_env = Env(
             user_id=user,
             name=env.name,
             file_name=file_name,
-            #status
+            result = 'success'
         )
         copy_env.save()
 
-        tbe = TableBelongEnv.objects.filter(id=data['env_id'])  #복사할 테이블
+        tbe = TableBelongEnv.objects.filter(env_id=data['env_id'])  #복사할 테이블
         parsed_table = {}
         for table in tbe:
             uuid = str(uuid4())
             uuid = uuid.replace('-', '_')
             copy_tbe = TableBelongEnv(
                 env_id=copy_env,
-                table_name=f'code_{uuid}',
+                table_name=f'ssql_{uuid}',
                 table_nickname=table.table_nickname
             )
             copy_tbe.save()
-            parsed_table[table.table_nickname] = copy_tbe.table_name
+            parsed_table[table.table_name] = copy_tbe.table_name
         
-        source = f"./sql_file/success/{env.file_name}"
-        destination = f"./sql_file/success/{copy_env.file_name}"
-        shutil.copyfile(source, destination)    #파일 복사
+        origin_source = f"./sql_file/original/{env.file_name}"
+        origin_destination = f"./sql_file/original/{copy_env.file_name}"
+        shutil.copyfile(origin_source, origin_destination)    #원본파일 복사
+        
+        f = open(f"./sql_file/parsed/{env.file_name}", 'r', encoding='utf-8')
+        query = f.read()
+        f.close()
 
+        for original, copy in parsed_table.items(): #테이블 명 변경
+            query = query.replace(original, copy)
+
+        re_con = re.compile("CONSTRAINT\s*(\`.*?\`|\'.*?\'|\".*?\"|.*?(?=\(|\s))", re.I)
+        constraint = re_con.findall(query)
+
+        for keyword in constraint:
+            re_ibfk = re.compile("[a-zA-Zㄱ-ㅎ|가-힣|0-9]", re.I)
+            ibfk = re_ibfk.findall(keyword)
+            query = query.replace(keyword, f"{''.join(ibfk)}{copy_env.id}")
+
+        f = open(f"./sql_file/parsed/{copy_env.file_name}", 'w', encoding='utf-8')
+        f.write(query)
+        f.close()   #파싱한 파일 복사
+  
         db = connect_to_environ()
-
-        copy_tbe = TableBelongEnv.objects.filter(id=copy_env.id)    #복사한 테이블
-        with db.cursor() as cursor:
-            for table, copy_table in zip(tbe, copy_tbe):
-                cursor.execute(
-                    f"create table '{copy_table.table_name}' select * from '{table.table_name}'"
-                )   #테이블 구조와 데이터 복사
-            db.commit()
+        with db.cursor() as cur:
+            cur.execute(query)
+            env.save()
+        db.commit()
         
         return CREATED()
-#Env 복사하면 실제 Environ DB에도 그 테이블들이 새로 생기는거지??
-#Environ DB에서 해당 테이블 가져와서 새로운 이름으로 테이블 생성하고, 그걸 넣어줘야할듯
