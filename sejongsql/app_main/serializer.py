@@ -48,24 +48,6 @@ class ProblemGroupSrz(serializers.ModelSerializer):
         fields = ('id', 'name', 'exam', 'activate_start', 'activate_end')
 
 
-class EnvInEbcSrz(serializers.Serializer):
-    envid = serializers.IntegerField()
-    owner = serializers.CharField(max_length=100)
-    name = serializers.CharField(max_length=100)
-    share = serializers.IntegerField()
-    updated_at = serializers.DateTimeField()
-    created_at = serializers.DateTimeField()
-    table = serializers.SerializerMethodField()
-
-    def get_table(self, obj):
-        table = TableBelongEnv.objects.filter(
-            env_id=obj.env_id
-        ).annotate(
-            name=F('table_nickname')
-        ).values_list('name')
-        return [key[0] for key in table]
-
-
 class EnvSrz(serializers.Serializer):
     id = serializers.IntegerField()
     owner = serializers.CharField(max_length=100)
