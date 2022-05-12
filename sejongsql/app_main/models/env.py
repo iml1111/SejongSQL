@@ -23,6 +23,14 @@ class EnvBelongClass(models.Model):
         db_table = 'ssql_env_belong_class'
 
 
+class EnvBelongMe(models.Model):
+    env_id = models.ForeignKey(Env, on_delete=models.CASCADE, db_column='env_id')
+    user_id = models.ForeignKey(User, on_delete=models.CASCADE, db_column='user_id')
+    share = models.BooleanField(default=1)
+
+    class Meta:
+        db_table = 'ssql_env_belong_me'
+
 class TableBelongEnv(models.Model):
     env_id = models.ForeignKey(Env, on_delete=models.CASCADE, db_column='env_id')
     table_name = models.CharField(max_length=100)
