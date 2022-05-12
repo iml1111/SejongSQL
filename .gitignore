@@ -132,3 +132,5 @@ dmypy.json
 .DS_Store
 
 /sejongsql/app_main/migrations
+
+/sejongsql/sql_file

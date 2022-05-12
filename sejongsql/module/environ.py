@@ -1,6 +1,6 @@
-import os, re
+import os, re, shutil
 from uuid import uuid4
-from app_main.models import Env, EnvBelongClass, TableBelongEnv, Queue
+from app_main.models import Env, EnvBelongClass, EnvBelongMe, TableBelongEnv, Queue
 from module.query_analyzer.mysql.query_parser import parse
 from MySQLdb import connect, cursors
 
@@ -19,12 +19,15 @@ def connect_to_environ():
     return db
 
 
-def create_env(user, classes, query, env_name, file_name, share):
-    file_uuid = uuid4()
+def create_env(
+    user, query, env_name,
+    file_name, share, type, 
+    classes=None
+):
     env = Env(
         user_id=user,
         name=env_name,
-        file_name=f"{file_uuid}_{file_name}"
+        file_name=f"{uuid4()}_{file_name}"
     )
     env.save()
 
@@ -35,112 +38,89 @@ def create_env(user, classes, query, env_name, file_name, share):
     )
     queue.save()
 
+    if type == 'class':
+        # EnvBelongClass DB 적용
+        ebc = EnvBelongClass(
+            env_id=env,
+            class_id=classes,
+            share=share
+        )
+        ebc.save()
+    elif type == 'mine':
+        # EnvBelongMe DB 적용
+        ebm = EnvBelongMe(
+            env_id=env,
+            user_id=user,
+            share=share
+        )
+        ebm.save()
+
+    # 원본파일 저장
     f = open(f"./sql_file/original/{env.file_name}", 'w', encoding='utf-8') 
-    f.write(query)  #원본파일 저장
+    f.write(query)
     f.close()
 
-    result = parse(query)   #sql query 파싱
+    # sql query 파싱
+    result = parse(query)
     if not result.result:
         env.result = 'parser failed'
         env.save()
         queue.status = 'complete'
         queue.save()
         return
-    print(result.tables)
-    parsed_table = {}
-    for nickname in result.tables:
-        uuid = str(uuid4())
-        uuid = uuid.replace('-', '_')   #table_name으로 사용할 uuid 파싱
-        parsed_table[nickname]= f'ssql_{uuid}'
 
-
-    f = open(f"./sql_file/parsed/{env.file_name}", 'w', encoding='utf-8')
-    for query in result.parsed_list:
-        for nickname, name in parsed_table.items():
-            query = query.replace(nickname, name)
-        f.write(query + '\n')
-    f.close()
-    """
-    re_create = re.compile(
-        "CREATE\s*TABLE\s*(\`.*?\`|\'.*?\'|\".*?\"|.*?(?=\(|\s))",
-        re.I
-    )
-    re_insert = re.compile(
-        "INSERT\s*INTO\s*(\`.*?\`|\'.*?\'|\".*?\"|.*?(?=\(|\s))",
-        re.I
-    )
-    re_con = re.compile(
-        "CONSTRAINT\s*(\`.*?\`|\'.*?\'|\".*?\"|.*?(?=\(|\s))",
-        re.I
-    )
-    re_refer = re.compile(
-        "REFERENCES\s*(\`.*?\`|\'.*?\'|\".*?\"|.*?(?=\(|\s))",
-        re.I
-    )
-
-    f = open(f"./sql_file/parsed/{env.file_name}", 'w', encoding='utf-8')
-    try:
+    # SQL File 파싱 과정
+    parsed_table = {nickname: f"ssql_{str(uuid4()).replace('-', '_')}" for nickname in result.tables}
+    with open(f"./sql_file/parsed/{env.file_name}", 'w', encoding='utf-8') as f:
         for query in result.parsed_list:
-            create_table = re_create.findall(query)
-            insert_into = re_insert.findall(query)
-            constraint = re_con.findall(query)
-            reference = re_refer.findall(query)
+            # CREATE / INSERT / REFERENCES 변경
+            regex_dict = {
+                'CREATE TABLE': "CREATE\s*TABLE\s*{}?(?=\(|\s)|CREATE\s*TABLE\s*.{}.\s*?(?=\(|\s)",
+                'INSERT INTO': "INSERT\s*INTO\s*{}?(?=\(|\s)|INSERT\s*INTO\s*.{}.\s*?(?=\(|\s)",
+                'REFERENCES': "REFERENCES\s*{}?(?=\(|\s)|REFERENCES\s*.{}.\s*?(?=\(|\s)"
+            }
+            for key, value in regex_dict.items():
+                for nickname, name in parsed_table.items():
+                    query = re.sub(
+                        value.format(nickname, nickname),
+                        f'{key} {name}',
+                        string=query,
+                        flags=re.IGNORECASE
+                    )
 
-        
-            for keyword in create_table:
-                query = query.replace(keyword, parsed_table[keyword])
-            
-            for keyword in insert_into:
-                query = query.replace(keyword, parsed_table[keyword])
-
+            # CONSTRAINT 변경
+            constraint = re.findall("CONSTRAINT\s*(`.*?`|'.*?'|\".*?\"|.*?(?=\s))", query, flags=re.IGNORECASE)
             for keyword in constraint:
-                re_ibfk = re.compile("[a-zA-Zㄱ-ㅎ|가-힣|0-9]", re.I)
-                ibfk = re_ibfk.findall(keyword)
+                ibfk = re.findall("[a-zA-Zㄱ-ㅎ|가-힣|0-9]", keyword)
                 query = query.replace(keyword, f"{''.join(ibfk)}{env.id}") #foreignkey name이 unique 해야함.
-
-            for keyword in reference:
-                query = query.replace(keyword, parsed_table[keyword])
-    
+            
             f.write(query + '\n')
-        f.close()
-    except Exception as e:
-        e = str(e)
-        for nickname, name in parsed_table.items():
-            e = e.replace(name, nickname)
-        f.close()
-        env.result = e
-        env.save()
-        queue.status = 'complete'
-        queue.save()
-        return
-    
-    f = open(f"./sql_file/parsed/{env.file_name}", 'r', encoding='utf-8')
-    queries = f.read()
-    f.close()
+
+    # DB 삽입 과정
+    with open(f"./sql_file/parsed/{env.file_name}", 'r', encoding='utf-8') as f:
+        queries = f.read()
 
     db = connect_to_environ()
-    try:
-        with db.cursor() as cur:
-            cur.execute(queries)
+    cur = db.cursor()
+    try: # 성공
+        cur.execute(queries)
         env.result = 'success'
         env.save()
-    except Exception as e:
-        e = str(e)
+    except Exception as error: # 실패
+        db.rollback()
+        error = str(error)
         for nickname, name in parsed_table.items():
-            e = e.replace(name, nickname)
-        env.result = e
+            error = error.replace(name, nickname)
+        env.result = error
         env.save()
         queue.status = 'complete'
         queue.save()
         return
+    finally:
+        cur.close()
+        db.close()
 
-    ebc = EnvBelongClass(
-        env_id=env,
-        class_id=classes,
-        share=share or 1
-    )
-    ebc.save()
-
+    # TableBelongEnv DB 적용
     for nickname, name in parsed_table.items():
         tbe = TableBelongEnv(
             env_id=env,
@@ -148,6 +128,72 @@ def create_env(user, classes, query, env_name, file_name, share):
             table_nickname=nickname
         )
         tbe.save()
-    """
+    
     queue.status = 'complete'
     queue.save()
+
+
+def copy_env(env, user, classes=None):
+    file_name = str(env.file_name)
+    file_name = file_name.replace(file_name[:36], str(uuid4()))
+    #uuid는 36자리
+
+    copy_env = Env(
+        user_id=user,
+        name=env.name,
+        file_name=file_name,
+        result = 'success'
+    )
+    copy_env.save()
+
+    if classes:
+        ebc = EnvBelongClass(
+            env_id=copy_env,
+            class_id=classes,
+            share=1
+        )
+        ebc.save()
+    else:
+        ebm = EnvBelongMe(
+            env_id=copy_env,
+            user_id=user,
+            share=1
+        )
+        ebm.save()
+
+    tbe = TableBelongEnv.objects.filter(env_id=env.id)  #복사할 테이블
+    parsed_table = {}
+    for table in tbe:
+        uuid = str(uuid4())
+        uuid = uuid.replace('-', '_')
+        copy_tbe = TableBelongEnv(
+            env_id=copy_env,
+            table_name=f'ssql_{uuid}',
+            table_nickname=table.table_nickname
+        )
+        copy_tbe.save()
+        parsed_table[table.table_name] = copy_tbe.table_name
+    
+    origin_source = f"./sql_file/original/{env.file_name}"
+    origin_destination = f"./sql_file/original/{copy_env.file_name}"
+    shutil.copyfile(origin_source, origin_destination)    #원본파일 복사
+    
+    with open(f"./sql_file/parsed/{env.file_name}", 'r', encoding='utf-8') as f:
+        query = f.read()
+
+    for original, copy in parsed_table.items(): #테이블 명 변경
+        query = query.replace(original, copy)
+
+    constraint = re.findall("CONSTRAINT\s*(`.*?`|'.*?'|\".*?\"|.*?(?=\s))", query, flags=re.IGNORECASE)
+    for keyword in constraint:
+        ibfk = re.findall("[a-zA-Zㄱ-ㅎ|가-힣|0-9]", keyword)
+        query = query.replace(keyword, f"{''.join(ibfk)}{copy_env.id}") #foreignkey name이 unique 해야함.
+
+    with open(f"./sql_file/parsed/{copy_env.file_name}", 'w', encoding='utf-8') as f:
+        f.write(query)   #파싱한 파일 복사
+
+    db = connect_to_environ()
+    with db.cursor() as cur:
+        cur.execute(query)
+        env.save()
+    db.commit()

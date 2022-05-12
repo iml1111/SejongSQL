@@ -67,11 +67,13 @@ class EnvInEbcSrz(serializers.Serializer):
 
 
 class EnvSrz(serializers.Serializer):
-    envid = serializers.IntegerField()
+    id = serializers.IntegerField()
     owner = serializers.CharField(max_length=100)
     name = serializers.CharField(max_length=100)
+    share = serializers.IntegerField()
     updated_at = serializers.DateTimeField()
     created_at = serializers.DateTimeField()
+    status = serializers.CharField(max_length=200)
     table = serializers.SerializerMethodField()
 
     def get_table(self, obj):

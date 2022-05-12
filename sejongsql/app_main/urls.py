@@ -51,18 +51,26 @@ urlpatterns = [
     ),
     path('api/v1/class/<int:class_id>/envs',
         envs.EnvView.as_view(),
-        name='create_read_env'
+        name='create_read_class_env'
     ),
     path('api/v1/class/<int:class_id>/envs/<int:env_id>',
         envs.EnvView.as_view(),
-        name='delete_env'
+        name='delete_class_env'
     ),
-    path('api/v1/envs/<int:env_id>/copy',
+    path('api/v1/users/me/envs',
         envs.MyEnvView.as_view(),
-        name='copy_env'
+        name='create_read_my_env'
     ),
-    path('api/v1/envs',
+    path('api/v1/users/me/envs/<int:env_id>',
         envs.MyEnvView.as_view(),
-        name='read_my_env'
+        name='delete_my_env'
+    ),
+    path('api/v1/users/me/envs/<int:env_id>/copy',
+        envs.EnvCopyMeView.as_view(),
+        name='copy_env_to_me'
+    ),
+    path('api/v1/class/<int:class_id>/envs/<int:env_id>/copy',
+        envs.EnvCopyClassView.as_view(),
+        name='copy_env_to_class'
     )
 ]
