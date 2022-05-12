@@ -2,7 +2,7 @@ from rest_framework.views import APIView
 from module.response import OK, NO_CONTENT, BAD_REQUEST, FORBIDDEN, CREATED
 from module.validator import Validator, Json, Path
 from module.decorator import login_required, get_user
-from app_main.models import Class, ProblemGroup, Problem, Env, UserSolveProblem
+from app_main.models import Class, ProblemGroup, Problem, Env, UserSolveProblem, Warning, WarningBelongProblem, WarningBelongUp
 from app_main.serializer import ProblemGroupSrz
 from django.db.models import Q
 from django_jwt_extended import jwt_required
@@ -61,7 +61,7 @@ class ProblemsInPgroupView(APIView):
                 Json('content', str),
                 Json('answer', str),
                 Json('timelimit', int),
-                Json('keyword', list)
+                Json('warnings', list)
             ])
 
         if not validator.is_valid:
@@ -79,9 +79,20 @@ class ProblemsInPgroupView(APIView):
         if not pgroup:
             return FORBIDDEN("can't find pgroup.")
 
-        env = Env.objects.filter(id=data['env_id']).first()
+        env = Env.objects.filter(
+            id=data['env_id'],
+            result='success'    #성공한 env만 적용.
+        ).first()
         if not env:
             return FORBIDDEN("can't find env.")
+
+        warning_list = []
+        for warning in data['warnings']:
+            warning_id = Warning.objects.filter(id=warning).first()
+            if not warning_id:
+                return FORBIDDEN("can't find ")
+            
+            warning_list.append(warning_id)
 
         problem = Problem(
             pg_id=pgroup,
@@ -93,7 +104,12 @@ class ProblemsInPgroupView(APIView):
         )  
         problem.save()
 
-        #keyword는 우리가 explain_warning 테이블에 넣는건가??
+        for warning in warning_list:
+            wbp = WarningBelongProblem(
+                p_id=problem,
+                warning_id=warning
+            )
+            wbp.save()
 
         return CREATED()
         
@@ -145,7 +161,6 @@ class ProblemView(APIView):
                 Json('content', str, optional=True),
                 Json('answer', str, optional=True),
                 Json('timelimit', int, optional=True),
-                Json('keyword', list, optional=True)
             ])
 
         if not validator.is_valid:

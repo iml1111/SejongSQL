@@ -45,26 +45,25 @@ class UserSolveProblem(models.Model):
         db_table = 'ssql_user_solve_problem'
 
 
-class ExplainWarning(models.Model):
+class Warning(models.Model):
     name = models.CharField(max_length=100)
     content = models.CharField(max_length=100)
-    point = models.IntegerField()
 
     class Meta:
-        db_table = 'ssql_explain_warning'
+        db_table = 'ssql_warning'
 
 
-class WarningMatchUp(models.Model):
-    warning_id = models.ForeignKey(ExplainWarning, on_delete=models.CASCADE, db_column='warning_id')
+class WarningBelongUp(models.Model):
+    warning_id = models.ForeignKey(Warning, on_delete=models.CASCADE, db_column='warning_id')
     up_id = models.ForeignKey(UserSolveProblem, on_delete=models.CASCADE, db_column='up_id')
 
     class Meta:
-        db_table = 'ssql_warning_match_up'
+        db_table = 'ssql_warning_belong_up'
 
 
-class WarningMatchProblem(models.Model):
+class WarningBelongProblem(models.Model):
     p_id = models.ForeignKey(Problem, on_delete=models.CASCADE, db_column='p_id')
-    warning_id = models.ForeignKey(ExplainWarning, on_delete=models.CASCADE, db_column='warning_id')
+    warning_id = models.ForeignKey(Warning, on_delete=models.CASCADE, db_column='warning_id')
 
     class Meta:
-        db_table = 'ssql_warning_match_problem'
+        db_table = 'ssql_warning_belong_problem'
