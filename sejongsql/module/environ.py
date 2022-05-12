@@ -146,6 +146,13 @@ def copy_env(env, user, classes=None):
     )
     copy_env.save()
 
+    queue = Queue(
+        user_id=user.id,
+        type='copy_env',
+        type_id=copy_env.id
+    )
+    queue.save()
+
     if classes:
         ebc = EnvBelongClass(
             env_id=copy_env,
@@ -197,3 +204,6 @@ def copy_env(env, user, classes=None):
         cur.execute(query)
         env.save()
     db.commit()
+
+    queue.status = 'complete'
+    queue.save()
