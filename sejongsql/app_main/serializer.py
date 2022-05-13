@@ -76,4 +76,8 @@ class MyEnvSrz(serializers.Serializer):
             env_id=obj.id
         ).values_list('table_name')
         return [key[0] for key in table]
-        
+
+
+class ProblemSrz(serializers.Serializer):
+    id = serializers.IntegerField()
+    title = serializers.CharField(max_length=100)

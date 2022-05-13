@@ -1,10 +1,12 @@
 from rest_framework.views import APIView
 from module.response import OK, NO_CONTENT, BAD_REQUEST, FORBIDDEN, CREATED
 from module.validator import Validator, Json, Path
-from module.decorator import login_required, get_user
-from app_main.models import Class, ProblemGroup, Problem, Env, UserSolveProblem, Warning, WarningBelongProblem, WarningBelongUp
+from module.decorator import login_required, sa_required, get_user
+from module.environ import connect_to_environ
+from app_main.models import Class, ProblemGroup, Problem, Env, TableBelongEnv, UserSolveProblem, Warning, WarningBelongProblem, WarningBelongUp
 from app_main.serializer import ProblemGroupSrz
-from django.db.models import Q
+from django.db.models import F, Q
+from django.utils import timezone
 from django_jwt_extended import jwt_required
 
 
@@ -15,7 +17,7 @@ class ProblemsInPgroupView(APIView):
     def get(self, request, **path):
         """
         특정 문제집의 문제 목록 반환 API
-        학생인 경우, 활성화 여부 체크!
+        학생인 경우, 문제집 활성화 여부 체크!
         """
 
         user = get_user(request)
@@ -33,12 +35,33 @@ class ProblemsInPgroupView(APIView):
             ubc = user.userbelongclass_set.filter(class_id=data['class_id']).first()
             if not ubc:
                 return FORBIDDEN("can't find class.")
-            if not ubc.is_admin:                
-                return FORBIDDEN("student can't access.")   #바꿔야함
+            if not ubc.is_admin:    #학생인 경우 활성화된 문제집인지 체크
+                pgroup = ProblemGroup.objects.filter(
+                    Q(id=data['pgroup_id']),
+                (
+                    Q(activate_start=None) |
+                    Q(activate_start__lt=timezone.now())   #lt(less than)
+                ),
+                (
+                    Q(activate_end=None) | 
+                    Q(activate_end__gt=timezone.now())   #gt(greater than)
+                )
+                ).first()
+                if not pgroup:
+                    return FORBIDDEN("can't find pgroup or pgroup is deactivated.")
+            
+                problems = Problem.objects.filter(
+                    pg_id=data['pgroup_id'],
+
+                )
+                
+
+                
         
-        problems = Problem.objects.filter(pg_id=data['pgroup_id'])  #문제 반환할 때, 활성화된 분반인지, 활성화된 문제집인지 확인 해야하나..?
-                                                                    #시험문제같은 중요한 문제가 있으므로 반드시 활성화 여부를 확인해야 할듯. 대신 문제집 활성화 정도면..?
-        problem_srz = ProblemSrz(problems, many=True)   #노션 api 확인! 문제정답여부 어케처리할지
+        problems = Problem.objects.filter(pg_id=data['pgroup_id'])
+        if not problems:
+            return FORBIDDEN("can't find problems.")                                                            
+        problem_srz = ProblemSrz(problems, many=True)
 
         return OK(problem_srz.data)
 
@@ -60,7 +83,7 @@ class ProblemsInPgroupView(APIView):
                 Json('title', str),
                 Json('content', str),
                 Json('answer', str),
-                Json('timelimit', int),
+                Json('timelimit', int, optional=True),
                 Json('warnings', list)
             ])
 
@@ -73,7 +96,7 @@ class ProblemsInPgroupView(APIView):
             if not ubc:
                 return FORBIDDEN("can't find class.")
             if not ubc.is_admin:                
-                return FORBIDDEN("student can't access.")
+                return BAD_REQUEST("student can't access.")
 
         pgroup = ProblemGroup.objects.filter(id=data['pgroup_id']).first()
         if not pgroup:
@@ -90,7 +113,7 @@ class ProblemsInPgroupView(APIView):
         for warning in data['warnings']:
             warning_id = Warning.objects.filter(id=warning).first()
             if not warning_id:
-                return FORBIDDEN("can't find ")
+                return FORBIDDEN("can't find warning.")
             
             warning_list.append(warning_id)
 
@@ -100,7 +123,7 @@ class ProblemsInPgroupView(APIView):
             title=data['title'],
             content=data['content'],
             answer=data['answer'],
-            timelimit=data['timelimit']
+            timelimit=data['timelimit'] or 10   #기본값 10초
         )  
         problem.save()
 
@@ -140,7 +163,7 @@ class ProblemView(APIView):
             if not ubc:
                 return FORBIDDEN("can't find class.")
             if not ubc.is_admin:                
-                return FORBIDDEN("student can't access.")   #바꿔야함
+                return BAD_REQUEST("student can't access.")   #바꿔야함
 
 
     @jwt_required()
@@ -161,6 +184,7 @@ class ProblemView(APIView):
                 Json('content', str, optional=True),
                 Json('answer', str, optional=True),
                 Json('timelimit', int, optional=True),
+                Json('warnings', list, optional=True)
             ])
 
         if not validator.is_valid:
@@ -172,7 +196,7 @@ class ProblemView(APIView):
             if not ubc:
                 return FORBIDDEN("can't find class.")
             if not ubc.is_admin:                
-                return FORBIDDEN("student can't access.")
+                return BAD_REQUEST("student can't access.")
 
         problem = Problem.objects.filter(id=data['problem_id']).first()
         if not problem:
@@ -189,7 +213,30 @@ class ProblemView(APIView):
         problem.content = data['content'] or problem.content
         problem.answer = data['answer'] or problem.answer
         problem.timelimit = data['timelimit'] or problem.timelimit
-        problem.keyword = data['keyword'] or problem.keyword
+        
+        if data['warnings']:
+            wbp = WarningBelongProblem.objects.filter(  #연결된 warning 불러오기.
+                p_id=problem.id
+            ).annotate(
+                warning=F('warning_id__id')
+            ).values('warning')
+            check_warning = [warning['warning'] for warning in wbp]
+
+            warning_list = []
+            for warning in data['warnings']:
+                warning_id = Warning.objects.filter(id=warning).first()
+                if not warning_id:
+                    return FORBIDDEN("can't find warning.")
+                
+                if warning not in check_warning:    #이미 연결된 warning은 제외하고 추가.
+                    warning_list.append(warning_id)
+
+            for warning in warning_list:
+                new_wbp = WarningBelongProblem(
+                    p_id=problem,
+                    warning_id=warning
+                )
+                new_wbp.save()
 
         return CREATED()
 
@@ -218,7 +265,7 @@ class ProblemView(APIView):
             if not ubc:
                 return FORBIDDEN("can't find class.")
             if not ubc.is_admin:                
-                return FORBIDDEN("student can't access.")
+                return BAD_REQUEST("student can't access.")
 
         problem = Problem.objects.filter(id=data['problem_id']).first()
         if not problem:
@@ -237,6 +284,50 @@ class ProblemRunView(APIView):
         문제 실행 API
         """
 
+        user = get_user(request)
+        validator = Validator(
+            request, path, params=[
+                Path('class_id', int),
+                Path('problem_id', int),
+                Json('query', str)
+            ])
+
+        if not validator.is_valid:
+            return BAD_REQUEST(validator.error_msg)
+        data = validator.data
+
+        if not user.is_sa:    
+            ubc = user.userbelongclass_set.filter(class_id=data['class_id']).first()
+            if not ubc:
+                return FORBIDDEN("can't find class.")
+
+        problem = Problem.objects.filter(id=data['problem_id']).first()
+        if not problem:
+            return FORBIDDEN("can't find problem.")
+
+        if not data['query']:
+            return BAD_REQUEST("query does not exist.")
+
+        env_table = TableBelongEnv.objects.filter(env_id=problem.env_id)
+        if not env_table:
+            return FORBIDDEN("env in problem does not exist.")
+
+        query = data['query']
+        for table in env_table:
+            query = query.replace(table.table_nickname, table.table_name)
+
+        db = connect_to_environ()
+        cur = db.cursor()
+        
+
+        
+
+        
+        
+
+
+        
+
 
 
 class ProblemSubmitView(APIView):
@@ -244,6 +335,35 @@ class ProblemSubmitView(APIView):
     @jwt_required()
     @login_required()
     def post(self, request, **path):
-         """
+        """
         문제 제출 API
         """
+
+
+class CreateWarningView(APIView):
+
+    @jwt_required()
+    @login_required()
+    @sa_required
+    def post(self, request, **path):
+        """
+        warning 테이블 생성 API
+        """
+
+        validator = Validator(
+            request, path, params=[
+                Json('warnings', dict)
+            ])
+
+        if not validator.is_valid:
+            return BAD_REQUEST(validator.error_msg)
+        data = validator.data
+        
+        for key, value in data['warnings'].items():
+            warning = Warning(
+                name=key,
+                content=value
+            )
+            warning.save()
+        
+        return CREATED()

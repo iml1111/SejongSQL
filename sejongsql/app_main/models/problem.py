@@ -32,14 +32,12 @@ class Problem(models.Model):
 
 
 class UserSolveProblem(models.Model):       
-    p_id = models.ForeignKey(Problem, on_delete=models.CASCADE, db_column='p_id', null=True)
-    user_id = models.ForeignKey(User, on_delete=models.CASCADE, db_column='user_id', null=True)
+    p_id = models.ForeignKey(Problem, on_delete=models.SET_NULL, db_column='p_id', null=True)
+    user_id = models.ForeignKey(User, on_delete=models.SET_NULL, db_column='user_id', null=True)
     accuracy = models.BooleanField()
-    efficiency = models.IntegerField()
     submit = models.BooleanField(default=0)
     query = models.CharField(max_length=1000)
     created_at = models.DateTimeField(auto_now_add=True)
-    ip = models.CharField(max_length=100)
 
     class Meta:
         db_table = 'ssql_user_solve_problem'
@@ -55,7 +53,7 @@ class Warning(models.Model):
 
 class WarningBelongUp(models.Model):
     warning_id = models.ForeignKey(Warning, on_delete=models.CASCADE, db_column='warning_id')
-    up_id = models.ForeignKey(UserSolveProblem, on_delete=models.CASCADE, db_column='up_id')
+    up_id = models.ForeignKey(UserSolveProblem, on_delete=models.SET_NULL, db_column='up_id', null=True)
 
     class Meta:
         db_table = 'ssql_warning_belong_up'
