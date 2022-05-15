@@ -12,7 +12,7 @@ from django.db.models import F
 class UserSrz(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ('id', 'name', 'role', 'created_at', 'updated_at', 'pw_updated_at')
+        fields = ('id', 'sejong_id', 'name', 'role', 'created_at', 'updated_at', 'pw_updated_at')
 
 
 class SearchUserSrz(serializers.ModelSerializer):
