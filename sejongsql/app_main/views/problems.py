@@ -1,10 +1,12 @@
+import os
 from rest_framework.views import APIView
 from module.response import OK, NO_CONTENT, BAD_REQUEST, FORBIDDEN, CREATED
 from module.validator import Validator, Json, Path
 from module.decorator import login_required, sa_required, get_user
-from module.environ import connect_to_environ
-from app_main.models import Class, ProblemGroup, Problem, Env, TableBelongEnv, UserSolveProblem, Warning, WarningBelongProblem, WarningBelongUp
-from app_main.serializer import ProblemGroupSrz
+from module.environ import get_db
+from module.query_analyzer.mysql.query_validator import SELECTQueryValidator
+from app_main.models import Class, ProblemGroup, Problem, Env, EnvBelongTable, UserSolveProblem, Warning, WarningBelongProblem, WarningBelongUp
+from app_main.serializer import ProblemGroupSrz, WarningSrz
 from django.db.models import F, Q
 from django.utils import timezone
 from django_jwt_extended import jwt_required
@@ -53,10 +55,7 @@ class ProblemsInPgroupView(APIView):
                 problems = Problem.objects.filter(
                     pg_id=data['pgroup_id'],
 
-                )
-                
-
-                
+                )                
         
         problems = Problem.objects.filter(pg_id=data['pgroup_id'])
         if not problems:
@@ -287,7 +286,6 @@ class ProblemRunView(APIView):
         user = get_user(request)
         validator = Validator(
             request, path, params=[
-                Path('class_id', int),
                 Path('problem_id', int),
                 Json('query', str)
             ])
@@ -296,11 +294,6 @@ class ProblemRunView(APIView):
             return BAD_REQUEST(validator.error_msg)
         data = validator.data
 
-        if not user.is_sa:    
-            ubc = user.userbelongclass_set.filter(class_id=data['class_id']).first()
-            if not ubc:
-                return FORBIDDEN("can't find class.")
-
         problem = Problem.objects.filter(id=data['problem_id']).first()
         if not problem:
             return FORBIDDEN("can't find problem.")
@@ -308,26 +301,42 @@ class ProblemRunView(APIView):
         if not data['query']:
             return BAD_REQUEST("query does not exist.")
 
-        env_table = TableBelongEnv.objects.filter(env_id=problem.env_id)
-        if not env_table:
-            return FORBIDDEN("env in problem does not exist.")
+        env = Env.objects.filter(id=problem.env_id.id).first()
+        if not env:
+            return FORBIDDEN("can't find env.")
 
         query = data['query']
-        for table in env_table:
-            query = query.replace(table.table_nickname, table.table_name)
 
-        db = connect_to_environ()
-        cur = db.cursor()
-        
+        db = get_db()
+        cursor = db.cursor()
+        db.select_db(env.db_name)
 
-        
+        validator = SELECTQueryValidator(
+            uri=f"{os.environ['SSQL_ORIGIN_MYSQL_URI']}/{env.db_name}"
+        )
+        validator_result = validator.check_query(query=query)
 
-        
-        
+        status = True
+        if validator_result.result:
+            cursor.execute(query)
+            query_result = cursor.fetchall()
+        else:
+            status = False
+            query_result = validator_result.msg
+            query_result = query_result.replace(f"{env.db_name}.", "")
+            query_result = query_result.replace(env.db_name, "")
 
+        usp = UserSolveProblem(
+            p_id=problem,
+            user_id=user,
+            query=query
+        )
+        usp.save()
 
-        
-
+        return OK({
+            'status': status,
+            'query_result': query_result
+        })
 
 
 class ProblemSubmitView(APIView):
@@ -340,7 +349,19 @@ class ProblemSubmitView(APIView):
         """
 
 
-class CreateWarningView(APIView):
+class WarningView(APIView):
+
+    @jwt_required()
+    @login_required()
+    def get(self, request, **path):
+        """
+        warning 종류 반환 API
+        """
+        
+        warnings = Warning.objects.all()
+        warnings_srz = WarningSrz(warnings, many=True)
+        return OK(warnings_srz.data)
+
 
     @jwt_required()
     @login_required()

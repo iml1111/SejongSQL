@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import index, users, classes, pgroup, envs
+from .views import index, users, classes, pgroup, envs, problems
 
 from .views import async_sample
 
@@ -68,4 +68,22 @@ urlpatterns = [
         envs.ConnectEnvView.as_view(),
         name='read_my_env'
     ),
+    path('api/v1/class/<int:class_id>/pgroups/<int:pgroup_id>/problems',
+        problems.ProblemsInPgroupView.as_view(),
+        name='create_read_problems_in_pgroup'
+    ),
+    path('api/v1/class/<int:class_id>/problems/<int:problem_id>',
+        problems.ProblemView.as_view(),
+        name='read_update_delete_problems'
+    ),
+    path('api/v1/problems/<int:problem_id>/run',
+        problems.ProblemRunView.as_view(),
+        name='run_problem'
+    ),
+    path('api/v1/class/<int:class_id>/problems/<int:problem_id>/submit',
+        problems.ProblemSubmitView.as_view(),
+        name='submit_problem'
+    ),
+    path('api/v1/warnings', problems.WarningView.as_view(), name='create_warning'),
+    path('api/v1/warnings', problems.WarningView.as_view(), name='create_warning')
 ]

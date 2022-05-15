@@ -3,7 +3,8 @@ from rest_framework import serializers
 from .models import (
     User,
     ProblemGroup,
-    EnvBelongTable
+    EnvBelongTable,
+    Warning
 )
 from django.db.models import F
 
@@ -81,3 +82,9 @@ class MyEnvSrz(serializers.Serializer):
 class ProblemSrz(serializers.Serializer):
     id = serializers.IntegerField()
     title = serializers.CharField(max_length=100)
+
+
+class WarningSrz(serializers.ModelSerializer):
+    class Meta:
+        model = Warning
+        fields = '__all__'

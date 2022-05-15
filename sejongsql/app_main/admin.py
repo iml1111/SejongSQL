@@ -2,7 +2,7 @@ from django.contrib import admin
 from .models import (
     User, Class, UserBelongClass,
     Problem, ProblemGroup, UserSolveProblem,
-    WarningMatchProblem, WarningMatchUp, ExplainWarning,
+    WarningBelongProblem, WarningBelongUp, Warning,
     Env, EnvBelongClass, EnvBelongTable,
     Queue
 )
@@ -40,9 +40,9 @@ admin.site.register(UserBelongClass, UBCAdmin)
 admin.site.register(Problem)
 admin.site.register(ProblemGroup, ProblemGroupAdmin)
 admin.site.register(UserSolveProblem)
-admin.site.register(WarningMatchProblem)
-admin.site.register(WarningMatchUp)
-admin.site.register(ExplainWarning)
+admin.site.register(WarningBelongProblem)
+admin.site.register(WarningBelongUp)
+admin.site.register(Warning)
 admin.site.register(Env, EnvAdmin)
 admin.site.register(EnvBelongClass, EBCAdmin)
 admin.site.register(EnvBelongTable, EBTAdmin)

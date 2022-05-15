@@ -34,7 +34,7 @@ class Problem(models.Model):
 class UserSolveProblem(models.Model):       
     p_id = models.ForeignKey(Problem, on_delete=models.SET_NULL, db_column='p_id', null=True)
     user_id = models.ForeignKey(User, on_delete=models.SET_NULL, db_column='user_id', null=True)
-    accuracy = models.BooleanField()
+    accuracy = models.BooleanField(default=None, null=True)
     submit = models.BooleanField(default=0)
     query = models.CharField(max_length=1000)
     created_at = models.DateTimeField(auto_now_add=True)
