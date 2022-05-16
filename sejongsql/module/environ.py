@@ -1,4 +1,5 @@
 import os
+from django.conf import settings
 from uuid import uuid4
 from app_main.models import Env, EnvBelongClass, EnvBelongTable, Queue
 from module.query_analyzer.mysql.query_parser import parse
@@ -46,7 +47,11 @@ def create_env(
     ebc.save()
 
     # 원본파일 저장
-    with open(f"./sql_file/original/{env.file_name}", 'w', encoding='utf-8') as f:
+    with open(
+        f"{getattr(settings, 'ORIGINAL_SQL_FILE', None)}{env.file_name}",
+        'w',
+        encoding='utf-8'
+    ) as f:
         f.write(query)
 
     # sql query 파싱
@@ -59,7 +64,11 @@ def create_env(
         return
 
     # SQL File 파싱 과정
-    with open(f"./sql_file/parsed/{env.file_name}", 'w', encoding='utf-8') as f:
+    with open(
+        f"{getattr(settings, 'PARSED_SQL_FILE', None)}{env.file_name}",
+        'w',
+        encoding='utf-8'
+    ) as f:
         for query in result.parsed_list:            
             f.write(query + '\n')
 
@@ -70,6 +79,7 @@ def create_env(
         db.select_db(env.db_name)
         for query in result.parsed_list:
             cursor.execute(query)
+        db.commit()
         env.result = 'success'
         env.save()
     except Exception as error: # 실패

@@ -8,6 +8,7 @@ from app_main.models import Class, Env, EnvBelongClass
 from app_main.serializer import ClassEnvSrz, MyEnvSrz
 from django.db.models import F
 from module.async_queue import get_async_queue, freeze
+from django.conf import settings
 
 
 class EnvView(APIView):
@@ -100,7 +101,10 @@ class EnvView(APIView):
         except:
             return FORBIDDEN("Incorrect sql file.")
 
-        q = get_async_queue(worker_num=3, qsize=100)
+        q = get_async_queue(
+            worker_num=getattr(settings, 'ASYNC_QUEUE_WORKER', None),
+            qsize=getattr(settings, 'ASYNC_QUEUE_SIZE', None),
+        )
         q.add(freeze(create_env)(
             user=user,
             classes=classes,
@@ -108,7 +112,7 @@ class EnvView(APIView):
             env_name=data['name'],
             file_name=data['file'].name
         ))
-
+        
         return CREATED()
 
 
@@ -139,6 +143,7 @@ class EnvView(APIView):
         db = get_db()
         cursor = db.cursor()
         cursor.execute(f"DROP DATABASE IF EXISTS {env.db_name};")
+        db.close()
 
         env.delete()
         return NO_CONTENT
