@@ -6,7 +6,7 @@ from app_main.models import Class, ProblemGroup
 from app_main.serializer import ProblemGroupSrz
 from django.utils import timezone
 from datetime import datetime
-from django.db.models import Q
+from django.db.models import Q, Count
 from django_jwt_extended import jwt_required
 
 
@@ -30,6 +30,7 @@ class PgroupView(APIView):
             return BAD_REQUEST(validator.error_msg)
         data = validator.data
 
+        """
         if not user.is_sa:    
             ubc = user.userbelongclass_set.filter(class_id=data['class_id']).first()
             if not ubc:
@@ -51,6 +52,16 @@ class PgroupView(APIView):
             )
         if not pgroup:
             return FORBIDDEN("can't find pgroup.")
+        """
+
+        pgroup = ProblemGroup.objects.filter(
+            class_id=data['class_id'],
+        ).annotate(
+            problem_cnt=Count('problem__id')
+        )
+        
+
+        #비활성화인 시간은 백단에서 None값으로 변경해서 반환
         
         pgroup_srz = ProblemGroupSrz(pgroup, many=True)
         return OK(pgroup_srz.data)      

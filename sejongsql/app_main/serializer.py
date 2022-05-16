@@ -1,8 +1,6 @@
 from rest_framework import serializers
 from .models import (
     User,
-    Class,
-    UserBelongClass,
     ProblemGroup,
     EnvBelongTable
 )
@@ -18,34 +16,31 @@ class UserSrz(serializers.ModelSerializer):
 class SearchUserSrz(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ('id', 'name')
+        fields = ('id', 'sejong_id', 'name')
 
 
-class ClassSrz(serializers.ModelSerializer):
-    class Meta:
-        model = Class
-        fields = ('name', 'semester', 'comment', 'activate')
+class UserInClassSrz(serializers.Serializer):
+    id = serializers.CharField(max_length=100)
+    sejong_id = serializers.CharField(max_length=100)
+    name = serializers.CharField(max_length=100)
+    type = serializers.CharField(max_length=100)
 
 
-class UBCSrz(serializers.ModelSerializer):
-    classes = ClassSrz(source='class_id')
-    class Meta:
-        model = UserBelongClass
-        fields = ('classes', 'type')
-
-
-class ClassInUbcSrz(serializers.Serializer):
+class ClassSrz(serializers.Serializer):
+    id = serializers.CharField(max_length=100)
     name = serializers.CharField(max_length=100)
     semester = serializers.CharField(max_length=100)
     comment = serializers.CharField(max_length=1000)
     activate = serializers.BooleanField(default=1)
-    type = serializers.CharField(max_length=100)
+    prof = serializers.CharField(max_length=100)
 
 
-class ProblemGroupSrz(serializers.ModelSerializer):
-    class Meta:
-        model = ProblemGroup
-        fields = ('id', 'name', 'exam', 'activate_start', 'activate_end')
+class ProblemGroupSrz(serializers.Serializer):
+    id = serializers.IntegerField()
+    name = serializers.CharField(max_length=100)
+    problem_cnt = serializers.IntegerField()
+    #solve_cnt = serializers.IntegerField()
+    #exam = serializers.BooleanField()
 
 
 class ClassEnvSrz(serializers.Serializer):
