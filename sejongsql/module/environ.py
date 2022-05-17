@@ -36,11 +36,12 @@ def create_env(user, query, env_name, classes=None):
     )
     queue.save()
 
-    ebc = EnvBelongClass(
-        env_id=env,
-        class_id=classes,
-    )
-    ebc.save()
+    if classes:
+        ebc = EnvBelongClass(
+            env_id=env,
+            class_id=classes,
+        )
+        ebc.save()
 
     # 원본파일 저장
     with open(

@@ -54,13 +54,12 @@ class EnvView(APIView):
     def post(self, request, **path):
         """
         내 env 생성 API
-        SA, 교수, 조교만 호출 가능
         """
 
         user = get_user(request)
         validator = Validator(
             request, path, params=[
-                Path('class_id', int),
+                Form('class_id', str, optional=True),
                 Form('name', str),
                 File('file')
             ])
@@ -68,39 +67,48 @@ class EnvView(APIView):
         if not validator.is_valid:
             return BAD_REQUEST(validator.error_msg)
         data = validator.data
-
-        if not user.is_sa:
-            ubc = user.userbelongclass_set.filter(class_id=data['class_id']).first()
-            if not ubc:
-                return FORBIDDEN("can't find class.")
-            if not ubc.is_admin:
-                return FORBIDDEN("student can't access.")
         
-        classes = Class.objects.filter(id=data['class_id']).first()
-        if not classes:
-            return FORBIDDEN("can't find class.")
-
         if Env.objects.filter(
-            envbelongclass__class_id=data['class_id'],  #같은 분반 내에
-            name=data['name'],   #같은 이름의 env가 있는지 확인
-            result__in=['success', 'working']    #성공하거나 작업중인 env인 경우
-        ).exists():
-            return FORBIDDEN("same env name is already created.")
-        elif Env.objects.filter(
-                envbelongclass__class_id=data['class_id'],
-                name=data['name']
-            ).exists():     #실패한 env인 경우
+                user_id=user.id,     #내 env 중에
+                name=data['name'],   #같은 이름의 env가 존재하고
+                result__in=['success', 'working']    #성공하거나 작업중인 env인 경우
+            ).exists():
+                return FORBIDDEN("same env name is already created.")
+                
+        if data['class_id']:    #분반에 env 생성
+            class_id = int(data['class_id'])
+            classes = Class.objects.filter(id=class_id).first()
+            if not classes:
+                return FORBIDDEN("can't find class.")
 
-            Env.objects.filter(
-                envbelongclass__class_id=data['class_id'],
-                name=data['name']
-            ).first().delete()
+            if Env.objects.filter(
+                    envbelongclass__class_id=class_id,  #같은 분반 내에
+                    name=data['name'],   #같은 이름의 env가 존재하고
+                    result__in=['success', 'working']).exists():    #성공하거나 작업중인 env인 경우
+                return FORBIDDEN("same env name is already created.")
+            else:
+                env = Env.objects.filter(
+                    envbelongclass__class_id=class_id,
+                    name=data['name']
+                ).first()    #실패한 env인 경우
+                if env:
+                    env.delete()
+        else:   #내 env 생성
+            env = Env.objects.filter(
+                    user_id=user.id,
+                    name=data['name']
+                ).exclude(
+                    result__in=['success', 'working']
+                ).first()     #실패한 env인 경우
+            if env:
+                env.delete()
+            classes = None
             
         try:
             query = data['file'].read().decode('utf-8')
         except:
             return FORBIDDEN("Incorrect sql file.")
-
+        
         q = get_async_queue(
             worker_num=getattr(settings, 'ASYNC_QUEUE_WORKER', None),
             qsize=getattr(settings, 'ASYNC_QUEUE_SIZE', None),
@@ -111,7 +119,7 @@ class EnvView(APIView):
             query=query,
             env_name=data['name'],
         ))
-        
+
         return CREATED()
 
 

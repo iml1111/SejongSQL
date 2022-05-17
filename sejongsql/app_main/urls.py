@@ -51,7 +51,11 @@ urlpatterns = [
     ),
     path('api/v1/class/<int:class_id>/envs',
         envs.EnvView.as_view(),
-        name='create_read_env_from_class'
+        name='read_env_from_class'
+    ),
+    path('api/v1/envs',
+        envs.EnvView.as_view(),
+        name='create_env'
     ),
     path('api/v1/envs/<int:env_id>',
         envs.EnvView.as_view(),
