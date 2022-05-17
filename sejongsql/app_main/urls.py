@@ -37,7 +37,7 @@ urlpatterns = [
         name='create_update_delete_class_user'
     ),
     path(
-        'api/v1/class/<int:class_id>/user/<str:user_id>',
+        'api/v1/class/<int:class_id>/user/<str:sejong_id>',
         classes.UserSearchView.as_view(),
         name='read_all_user'
     ),

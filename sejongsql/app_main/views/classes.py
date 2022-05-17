@@ -4,7 +4,7 @@ from module.validator import Validator, Json, Path
 from module.decorator import login_required, sa_required, get_user
 from django_jwt_extended import jwt_required
 from app_main.models import User, Class, UserBelongClass
-from app_main.serializer import ClassSrz, SearchUserSrz, UBCSrz, ClassInUbcSrz   
+from app_main.serializer import ClassSrz, SearchUserSrz , UserInClassSrz
 from django.db.models import F, Q
 
 
@@ -31,47 +31,51 @@ class ClassView(APIView):
         data = validator.data
 
         if data['class_id']:
-            if user.is_sa:
-                classes = Class.objects.filter(id=data['class_id']).first()
-                if not classes:
+            if not user.is_sa:
+                if not Class.objects.filter(
+                    Q(id=data['class_id']),
+                    Q(userbelongclass__user_id=user.id),
+                    Q(userbelongclass__type='prof') |
+                    Q(userbelongclass__type='ta') |
+                    Q(userbelongclass__type='st', activate=1)    #학생은 활성화 상태인 분반만 줌.
+                ).exists():
                     return FORBIDDEN("can't find class.")
-
-                class_srz = ClassSrz(classes)
-                return OK(class_srz.data)
-
-            ubc = user.userbelongclass_set.filter(
-                Q(class_id=data['class_id']),
-                Q(type = 'prof') |
-                Q(type = 'ta') |
-                Q(type = 'st', class_id__activate=1)    #학생은 활성화 상태인 분반만 줌.
-                ).first()
-            if not ubc:
+            
+            classes = Class.objects.filter(
+                id=data['class_id'],
+                userbelongclass__type='prof'
+            ).annotate(
+                prof=F('userbelongclass__user_id')
+            ).first()
+            if not classes:
                 return FORBIDDEN("can't find class.")
             
-            ubc_srz = UBCSrz(ubc).data
-            ubc_srz['classes']['type'] = ubc.type
-            return OK(ubc_srz['classes'])
+            class_srz = ClassSrz(classes).data
+            return OK(class_srz)
         else:
             if user.is_sa:
-                classes = Class.objects.all()
-                class_srz = ClassSrz(classes, many=True)
-                return OK(class_srz.data)
-            
-            ubc = user.userbelongclass_set.filter(
-                Q(type = 'prof') |
-                Q(type = 'ta') |
-                Q(type = 'st', class_id__activate=1)
-            ).annotate(
-                name=F('class_id__name'),
-                semester=F('class_id__semester'),
-                comment=F('class_id__comment'),
-                activate=F('class_id__activate')
-            )
-            if not ubc:
-                 return FORBIDDEN("can't find class.")
-            
-            ubc_srz = ClassInUbcSrz(ubc, many=True)
-            return OK(ubc_srz.data)
+                classes = Class.objects.filter(
+                    userbelongclass__type='prof'
+                ).annotate(
+                    prof=F('userbelongclass__user_id')
+                )
+            else:
+                my_class = Class.objects.filter(
+                    Q(userbelongclass__user_id=user.id),
+                    Q(userbelongclass__type = 'prof') |
+                    Q(userbelongclass__type = 'ta') |
+                    Q(userbelongclass__type = 'st', activate=1)
+                ).values_list('id')   #본인이 속한 분반 반환
+
+                classes = Class.objects.filter(
+                    id__in=my_class,
+                    userbelongclass__type='prof'
+                ).annotate(
+                    prof=F('userbelongclass__user_id')
+                )
+
+            class_srz = ClassSrz(classes, many=True).data
+            return OK(class_srz)
 
 
     @jwt_required()
@@ -133,7 +137,7 @@ class ClassView(APIView):
                 Json('name', str, optional=True),
                 Json('comment', str, optional=True),
                 Json('prof_id', str, optional=True),
-                Json('activate', int),  #분반 활성화는 토글 방식이라 항상 값이 올듯
+                Json('activate', int, optional=True),  #분반 활성화는 토글 방식이라 항상 값이 올듯
             ])
 
         if not validator.is_valid:
@@ -146,7 +150,7 @@ class ClassView(APIView):
         
         classes.name = data['name'] or classes.name   
         classes.comment = data['comment'] or classes.comment  
-        classes.activate = data['activate']
+        classes.activate = data['activate'] or classes.activate
         if data['prof_id']:
             prof = User.objects.filter(id=data['prof_id']).first()
             if not prof:
@@ -217,17 +221,20 @@ class ClassUserView(APIView):
                 return FORBIDDEN("can't find class.")
             if not ubc.is_admin:
                 return FORBIDDEN("student can't access.")
-            
-        obj = UserBelongClass.objects.filter(
-            class_id=data['class_id']
-            ).exclude(
-                type='prof'
-            ).annotate(
-                userid=F('user_id'),
-                name=F('user_id__name'),
-            ).values('userid', 'name', 'type', 'created_at')
 
-        return OK(obj)
+        users = User.objects.filter(
+            userbelongclass__class_id=data['class_id'],
+        ).exclude(
+            userbelongclass__type='prof'
+        ).annotate(
+            type=F('userbelongclass__type')
+        )
+
+        for user in users:
+            ubc = UserBelongClass.objects.filter(user_id=user.id).first()
+            user.created_at = ubc.created_at
+        users_srz = UserInClassSrz(users, many=True).data
+        return OK(users_srz)
 
 
     @jwt_required()
@@ -300,7 +307,6 @@ class ClassUserView(APIView):
             request, path, params=[
                 Path('class_id', int),
                 Path('user_id', str),
-                Json('type', str),
             ])
 
         if not validator.is_valid:
@@ -313,20 +319,20 @@ class ClassUserView(APIView):
                 return FORBIDDEN("can't find class.")
             if not ubc.is_admin:
                 return FORBIDDEN("student can't access.")
-            if data['type'] == 'ta' and ubc.is_ta:
-                return FORBIDDEN("TA only delete student.")
-
-        if data['type'] == 'prof':
-            return FORBIDDEN("can't delete prof.")
 
         obj = UserBelongClass.objects.filter(
             user_id=data['user_id'],
             class_id=data['class_id'],
-            type=data['type'],
         ).first()
         if not obj:
             return FORBIDDEN("can't find user.")
+        
+        if obj.type == 'prof':
+            return FORBIDDEN("can't delete prof.")
 
+        if obj.type == 'ta':    #제거 대상이 조교이고
+            if not user.is_sa and ubc.is_ta:   #호출한 사용자 또한 조교일 때
+                return FORBIDDEN("ta can't delete ta.")
         obj.delete()
 
         return NO_CONTENT
@@ -346,7 +352,7 @@ class UserSearchView(APIView):
         validator = Validator(
             request, path, params=[
                 Path('class_id', int),
-                Path('user_id', str),
+                Path('sejong_id', str),
             ])
 
         if not validator.is_valid:
@@ -360,15 +366,19 @@ class UserSearchView(APIView):
             if not ubc.is_admin:
                 return FORBIDDEN("student can't access.")
 
-        obj = User.objects.filter(id=data['user_id']).prefetch_related(
-            'userbelongclass_set'
-            ).first()
+        obj = User.objects.filter(sejong_id__startswith=data['sejong_id'])
         if not obj:
             return FORBIDDEN("can't find user.")
         
-        user_srz = SearchUserSrz(obj).data
-        if obj.userbelongclass_set.filter(class_id=data['class_id']).exists():
-            user_srz['exist'] = True
-        else:
-            user_srz['exist'] = False
+        user_srz = SearchUserSrz(obj, many=True).data
+        
+        for user in user_srz:
+            if UserBelongClass.objects.filter(
+                class_id=data['class_id'],
+                user_id=user['id']
+            ).exists():
+                user['exist'] = True
+            else:
+                user['exist'] = False
+        
         return OK(user_srz)
