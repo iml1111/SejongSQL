@@ -110,7 +110,6 @@ class EnvView(APIView):
             classes=classes,
             query=query,
             env_name=data['name'],
-            file_name=data['file'].name
         ))
         
         return CREATED()

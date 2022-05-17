@@ -20,16 +20,12 @@ def get_db():
     )
 
 
-def create_env(
-    user, query, 
-    env_name, file_name,
-    classes=None
-):
+def create_env(user, query, env_name, classes=None):
     env = Env(
         user_id=user,
         name=env_name,
         db_name=f'{env_name}_{user.id}',
-        file_name=f"{uuid4()}_{file_name}"
+        file_name=f"{uuid4()}.sql"
     )
     env.save()
 
