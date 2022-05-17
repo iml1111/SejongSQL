@@ -230,6 +230,9 @@ class ClassUserView(APIView):
             type=F('userbelongclass__type')
         )
 
+        for user in users:
+            ubc = UserBelongClass.objects.filter(user_id=user.id).first()
+            user.created_at = ubc.created_at
         users_srz = UserInClassSrz(users, many=True).data
         return OK(users_srz)
 

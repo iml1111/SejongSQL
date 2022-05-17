@@ -2,11 +2,11 @@ from rest_framework.views import APIView
 from module.response import OK, NO_CONTENT, BAD_REQUEST, FORBIDDEN, CREATED
 from module.validator import Validator, Json, Path
 from module.decorator import login_required, get_user
-from app_main.models import Class, ProblemGroup
+from app_main.models import Class, ProblemGroup, Problem, UserSolveProblem
 from app_main.serializer import ProblemGroupSrz
 from django.utils import timezone
 from datetime import datetime
-from django.db.models import Q, Count
+from django.db.models import Q, F, Count, Case, When
 from django_jwt_extended import jwt_required
 
 
@@ -30,40 +30,76 @@ class PgroupView(APIView):
             return BAD_REQUEST(validator.error_msg)
         data = validator.data
 
-        """
+        
         if not user.is_sa:    
             ubc = user.userbelongclass_set.filter(class_id=data['class_id']).first()
             if not ubc:
                 return FORBIDDEN("can't find class.")
 
-        if user.is_sa or ubc.is_admin:
-            pgroup = ProblemGroup.objects.filter(class_id=data['class_id'])
-        else:  #학생이면 활성화된 분반만
-            pgroup = ProblemGroup.objects.filter(
-                Q(class_id=data['class_id']),
-                (
-                    Q(activate_start=None) |
-                    Q(activate_start__lt=timezone.now())   #lt(less than)
-                ),
-                (
-                    Q(activate_end=None) | 
-                    Q(activate_end__gt=timezone.now())   #gt(greater than)
+        if user.is_sa or ubc.is_admin:  #관리자
+            pgroups = ProblemGroup.objects.filter(
+                class_id=data['class_id'],
+            ).annotate(
+                problem_cnt=Count('problem__id'),
+                activate=Case(
+                    When(
+                        (Q(activate_start=None) | Q(activate_start__lt=timezone.now())) &   #lt(less than)
+                        (Q(activate_end=None) | Q(activate_end__gt=timezone.now())),   #gt(greater than)
+                        then=1
+                    ),
+                    default=0
                 )
             )
-        if not pgroup:
-            return FORBIDDEN("can't find pgroup.")
-        """
 
-        pgroup = ProblemGroup.objects.filter(
-            class_id=data['class_id'],
-        ).annotate(
-            problem_cnt=Count('problem__id')
-        )
-        
+            for pgroup in pgroups:
+                problems = Problem.objects.filter(
+                    pg_id=pgroup.id,
+                    usersolveproblem__user_id=user.id,
+                    usersolveproblem__accuracy=1
+                ).annotate(
+                    solve_cnt=Count('id')
+                ).values()
+                pgroup.solve_cnt = len(problems)
+        else:   #학생
+            pgroups = ProblemGroup.objects.filter(
+                Q(class_id=data['class_id']),
+                (
+                    Q(exam=1) | #시험모드이거나
+                    (
+                        (Q(activate_start=None) | Q(activate_start__lt=timezone.now())) &
+                        (Q(activate_end=None) | Q(activate_end__gt=timezone.now()))
+                    )   #활성화일 때만 반환
+                )
+            ).annotate(
+                problem_cnt=Count('problem__id'),
+                activate=Case(
+                    When(
+                        (Q(activate_start=None) | Q(activate_start__lt=timezone.now())) &   #lt(less than)
+                        (Q(activate_end=None) | Q(activate_end__gt=timezone.now())),   #gt(greater than)
+                        then=1
+                    ),
+                    default=0
+                )
+            )
 
-        #비활성화인 시간은 백단에서 None값으로 변경해서 반환
+        for pgroup in pgroups:
+            problems = Problem.objects.filter(
+                    pg_id=pgroup.id,
+                    usersolveproblem__user_id=user.id,
+                    usersolveproblem__accuracy=1
+                ).annotate(
+                    solve_cnt=Count('id')
+                ).values()
+            pgroup.solve_cnt = len(problems)
+
+            if pgroup.activate == False:
+                if pgroup.activate_start == datetime(1997,12,8,0,0,0):
+                    pgroup.activate_start = None
+                if pgroup.activate_end == datetime(1997,12,8,0,0,0):
+                    pgroup.activate_end = None
+        #비활성화인 시간은 None값으로 변경해서 반환
         
-        pgroup_srz = ProblemGroupSrz(pgroup, many=True)
+        pgroup_srz = ProblemGroupSrz(pgroups, many=True)
         return OK(pgroup_srz.data)      
 
 
@@ -115,7 +151,13 @@ class PgroupView(APIView):
             data['activate_start'] = datetime(1997,12,8,0,0,0)
             data['activate_end'] = datetime(1997,12,8,0,0,0)
         #비활성화이면,  불가능한 시간대로 설정
-        
+
+        try:
+            datetime.strptime(data['activate_start'],"%Y-%m-%d %H:%M:%S")
+            datetime.strptime(data['activate_end'],"%Y-%m-%d %H:%M:%S")
+        except: 
+            return BAD_REQUEST("Incorrect date format.")
+
         pgroup = ProblemGroup(
             class_id = classes,
             name = data['name'],

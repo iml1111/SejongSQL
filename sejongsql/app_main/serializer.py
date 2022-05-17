@@ -1,3 +1,4 @@
+from os import set_inheritable
 from rest_framework import serializers
 from .models import (
     User,
@@ -24,6 +25,7 @@ class UserInClassSrz(serializers.Serializer):
     sejong_id = serializers.CharField(max_length=100)
     name = serializers.CharField(max_length=100)
     type = serializers.CharField(max_length=100)
+    created_at = serializers.DateTimeField()
 
 
 class ClassSrz(serializers.Serializer):
@@ -39,9 +41,11 @@ class ProblemGroupSrz(serializers.Serializer):
     id = serializers.IntegerField()
     name = serializers.CharField(max_length=100)
     problem_cnt = serializers.IntegerField()
-    #solve_cnt = serializers.IntegerField()
-    #exam = serializers.BooleanField()
-
+    solve_cnt = serializers.IntegerField()
+    exam = serializers.BooleanField()
+    activate = serializers.BooleanField()
+    activate_start = serializers.DateTimeField()
+    activate_end = serializers.DateTimeField()
 
 class ClassEnvSrz(serializers.Serializer):
     id = serializers.IntegerField()
