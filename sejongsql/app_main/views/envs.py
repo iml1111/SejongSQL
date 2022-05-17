@@ -83,13 +83,13 @@ class EnvView(APIView):
         if Env.objects.filter(
             envbelongclass__class_id=data['class_id'],  #같은 분반 내에
             name=data['name'],   #같은 이름의 env가 있는지 확인
-            result='success'    #성공한 env인 경우
+            result__in=['success', 'working']    #성공하거나 작업중인 env인 경우
         ).exists():
             return FORBIDDEN("same env name is already created.")
         elif Env.objects.filter(
                 envbelongclass__class_id=data['class_id'],
                 name=data['name']
-            ).exists():
+            ).exists():     #실패한 env인 경우
 
             Env.objects.filter(
                 envbelongclass__class_id=data['class_id'],
@@ -209,20 +209,18 @@ class ConnectEnvView(APIView):
         if EnvBelongClass.objects.filter(
             class_id=data['class_id'],
             env_id__name=env.name,      #이름이 같은 env가 존재하며
-            env_id__result='success'    #성공한 env인 경우
+            env_id__result__in=['success', 'working']    #성공하거나 작업중인 env인 경우
         ).exists():
             return FORBIDDEN("env is already in the class.")
-        elif EnvBelongClass.objects.filter(
-            class_id=data['class_id'],
-            env_id__name=env.name      #이름이 같은 env가 존재
-        ).exists():
-
+        else:
             ebc = EnvBelongClass.objects.filter(
                 class_id=data['class_id'],
-                env_id__name=env.name
+                env_id__name=env.name   #이름이 같은 env가 존재하며
+            ).exclude(
+                env_id__result__in=['success', 'working'],  #실패한 env인 경우
             ).first()
-
-            Env.objects.filter(id=ebc.env_id.id).first().delete()
+            if ebc:
+                Env.objects.filter(id=ebc.env_id.id).first().delete()
 
         ebc = EnvBelongClass(
             env_id=env,

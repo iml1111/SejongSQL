@@ -24,7 +24,7 @@ def create_env(user, query, env_name, classes=None):
     env = Env(
         user_id=user,
         name=env_name,
-        db_name=f'{env_name}_{user.id}',
+        db_name=f"sejongsql_{str(uuid4()).replace('-','_')}",
         file_name=f"{uuid4()}.sql"
     )
     env.save()
