@@ -352,7 +352,7 @@ class UserSearchView(APIView):
         validator = Validator(
             request, path, params=[
                 Path('class_id', int),
-                Path('user_id', str),
+                Path('sejong_id', str),
             ])
 
         if not validator.is_valid:
@@ -366,7 +366,7 @@ class UserSearchView(APIView):
             if not ubc.is_admin:
                 return FORBIDDEN("student can't access.")
 
-        obj = User.objects.filter(id__startswith=data['user_id'])
+        obj = User.objects.filter(sejong_id__startswith=data['sejong_id'])
         if not obj:
             return FORBIDDEN("can't find user.")
         
