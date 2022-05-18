@@ -153,8 +153,10 @@ class PgroupView(APIView):
         #비활성화이면,  불가능한 시간대로 설정
 
         try:
-            datetime.strptime(data['activate_start'],"%Y-%m-%d %H:%M:%S")
-            datetime.strptime(data['activate_end'],"%Y-%m-%d %H:%M:%S")
+            if data['activate_start']:
+                datetime.strptime(data['activate_start'],"%Y-%m-%d %H:%M:%S")
+            if data['activate_end']:
+                datetime.strptime(data['activate_end'],"%Y-%m-%d %H:%M:%S")
         except: 
             return BAD_REQUEST("Incorrect date format.")
 
