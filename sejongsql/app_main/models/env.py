@@ -7,7 +7,7 @@ class Env(models.Model):
     name = models.CharField(max_length=100)
     db_name = models.CharField(max_length=100)
     file_name = models.CharField(max_length=100)
-    result = models.CharField(max_length=200, default='작업중')
+    result = models.CharField(max_length=200, default='working')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

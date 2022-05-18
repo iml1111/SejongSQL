@@ -1,13 +1,14 @@
 import os
+from datetime import datetime
 from rest_framework.views import APIView
 from module.response import OK, NO_CONTENT, BAD_REQUEST, FORBIDDEN, CREATED
 from module.validator import Validator, Json, Path
 from module.decorator import login_required, sa_required, get_user
 from module.environ import get_db
 from module.query_analyzer.mysql.query_validator import SELECTQueryValidator
-from app_main.models import Class, ProblemGroup, Problem, Env, EnvBelongTable, UserSolveProblem, Warning, WarningBelongProblem, WarningBelongUp
-from app_main.serializer import ProblemGroupSrz, WarningSrz
-from django.db.models import F, Q
+from app_main.models import ProblemGroup, Problem, Env, Warning, WarningBelongProblem, UserBelongClass, UserSolveProblem
+from app_main.serializer import ProblemGroupSrz, WarningSrz, ProblemSrz
+from django.db.models import F, Q, Case, When
 from django.utils import timezone
 from django_jwt_extended import jwt_required
 
@@ -97,7 +98,10 @@ class ProblemsInPgroupView(APIView):
             if not ubc.is_admin:                
                 return BAD_REQUEST("student can't access.")
 
-        pgroup = ProblemGroup.objects.filter(id=data['pgroup_id']).first()
+        pgroup = ProblemGroup.objects.filter(
+            id=data['pgroup_id'],
+            class_id=data['class_id']
+        ).first()
         if not pgroup:
             return FORBIDDEN("can't find pgroup.")
 
@@ -108,14 +112,10 @@ class ProblemsInPgroupView(APIView):
         if not env:
             return FORBIDDEN("can't find env.")
 
-        warning_list = []
-        for warning in data['warnings']:
-            warning_id = Warning.objects.filter(id=warning).first()
-            if not warning_id:
-                return FORBIDDEN("can't find warning.")
-            
-            warning_list.append(warning_id)
-
+        warnings = Warning.objects.filter(id__in=data['warnings'])
+        if not warnings:
+            return FORBIDDEN("can't find warnings.")
+        
         problem = Problem(
             pg_id=pgroup,
             env_id=env,
@@ -126,13 +126,13 @@ class ProblemsInPgroupView(APIView):
         )  
         problem.save()
 
-        for warning in warning_list:
+        for warning in warnings:
             wbp = WarningBelongProblem(
                 p_id=problem,
                 warning_id=warning
             )
             wbp.save()
-
+        
         return CREATED()
         
 
@@ -143,7 +143,7 @@ class ProblemView(APIView):
     def get(self, request, **path):
         """
         특정 문제 반환 API
-        학생인 경우, 활성화 여부 체크!
+        학생인 경우, 해당 문제가 속한 문제집 활성화 여부 체크!
         """
 
         user = get_user(request)
@@ -157,12 +157,42 @@ class ProblemView(APIView):
             return BAD_REQUEST(validator.error_msg)
         data = validator.data
 
-        if not user.is_sa:    
+        if not user.is_sa:
             ubc = user.userbelongclass_set.filter(class_id=data['class_id']).first()
             if not ubc:
                 return FORBIDDEN("can't find class.")
-            if not ubc.is_admin:                
-                return BAD_REQUEST("student can't access.")   #바꿔야함
+
+        if user.is_sa or ubc.is_admin:  #관리자
+            problem = Problem.objects.filter(
+                id=data['problem_id']
+            ).prefetch_related(
+                'usersolveproblem_set'
+            ).first()
+        else:   #학생
+            problem = Problem.objects.filter(
+                Q(id=data['problem_id']),
+                Q(pg_id__class_id__activate=1), #분반이 할성화이면서
+                (
+                    (Q(pg_id__activate_start=None) | 
+                        Q(pg_id__activate_start__lt=timezone.now())) &
+                    (Q(pg_id__activate_end=None) |
+                        Q(pg_id__activate_end__gt=timezone.now())) #문제집이 활성화인지 체크
+                )
+            ).prefetch_related(
+                'usersolveproblem_set'
+            ).first()
+
+        if not problem:
+            return FORBIDDEN("can't find problem.")
+
+        result = problem.usersolveproblem_set.filter(
+            submit=1
+        ).order_by('-created_at').first()
+
+        problem_srz = ProblemSrz(problem).data
+        problem_srz['latest_query'] = result.query if result else None
+
+        return OK(problem_srz)
 
 
     @jwt_required()
@@ -197,12 +227,18 @@ class ProblemView(APIView):
             if not ubc.is_admin:                
                 return BAD_REQUEST("student can't access.")
 
-        problem = Problem.objects.filter(id=data['problem_id']).first()
+        problem = Problem.objects.filter(
+            id=data['problem_id'],
+            class_id=data['class_id']
+        ).first()
         if not problem:
             return FORBIDDEN("can't find problem.")
 
         if data['env_id']:
-            env = Env.objects.filter(id=data['env_id']).first()
+            env = Env.objects.filter(
+                id=data['env_id'],
+                result='success'
+            ).first()
             if not env:
                 return FORBIDDEN("can't find env.")
 
@@ -266,7 +302,10 @@ class ProblemView(APIView):
             if not ubc.is_admin:                
                 return BAD_REQUEST("student can't access.")
 
-        problem = Problem.objects.filter(id=data['problem_id']).first()
+        problem = Problem.objects.filter(
+            id=data['problem_id'],
+            class_id=data['class_id']
+        ).first()
         if not problem:
             return FORBIDDEN("can't find problem.")
         
@@ -294,9 +333,33 @@ class ProblemRunView(APIView):
             return BAD_REQUEST(validator.error_msg)
         data = validator.data
 
-        problem = Problem.objects.filter(id=data['problem_id']).first()
+        problem = Problem.objects.filter(
+            id=data['problem_id'],
+            pg_id__class_id__userbelongclass__user_id=user.id
+        ).select_related(
+            'pg_id__class_id'
+        ).first()
         if not problem:
             return FORBIDDEN("can't find problem.")
+        
+        if UserBelongClass.objects.filter(
+            class_id=problem.pg_id.class_id.id,
+            type='st'
+        ).exists():     #학생이면
+            
+            if not problem.pg_id.class_id.activate or  (#분반이 비활성화이거나
+                (
+                    problem.pg_id.activate_start!=None and
+                    (problem.pg_id.activate_start==datetime(1997,12,8,0,0,0) or
+                    problem.pg_id.activate_start > timezone.now())
+                ) or
+                (
+                    problem.pg_id.activate_end!=None and
+                    (problem.pg_id.activate_end==datetime(1997,12,8,0,0,0) or 
+                    problem.pg_id.activate_end < timezone.now())
+                )  #문제집이 비활성화이면
+            ):
+                return FORBIDDEN("can't find problem.")
 
         if not data['query']:
             return BAD_REQUEST("query does not exist.")
@@ -337,7 +400,7 @@ class ProblemRunView(APIView):
             'status': status,
             'query_result': query_result
         })
-
+        
 
 class ProblemSubmitView(APIView):
 
@@ -348,6 +411,15 @@ class ProblemSubmitView(APIView):
         문제 제출 API
         """
 
+
+class MyProblemView(APIView):
+
+    @jwt_required()
+    @login_required()
+    def get(self, request, **path):
+        """
+        내가 푼 문제 반환 API
+        """
 
 class WarningView(APIView):
 
