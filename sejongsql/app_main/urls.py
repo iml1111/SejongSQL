@@ -71,23 +71,23 @@ urlpatterns = [
     ),
     path('api/v1/class/<int:class_id>/pgroups/<int:pgroup_id>/problems',
         problems.ProblemsInPgroupView.as_view(),
-        name='create_read_problems_in_pgroup'
+        name='create_problems_in_pgroup'
+    ),
+    path('api/v1/pgroups/<int:pgroup_id>/problems',
+        problems.ProblemsInPgroupView.as_view(),
+        name='read_problems_in_pgroup'
     ),
     path('api/v1/class/<int:class_id>/problems/<int:problem_id>',
         problems.ProblemView.as_view(),
-        name='read_update_delete_problems'
+        name='update_delete_problems'
+    ),
+    path('api/v1/problems/<int:problem_id>',
+        problems.ProblemView.as_view(),
+        name='read_problems'
     ),
     path('api/v1/problems/<int:problem_id>/run',
         problems.ProblemRunView.as_view(),
         name='run_problem'
-    ),
-    path('api/v1/class/<int:class_id>/problems/<int:problem_id>/submit',
-        problems.ProblemSubmitView.as_view(),
-        name='submit_problem'
-    ),
-    path('api/v1/users/me/problems',
-        problems.MyProblemView.as_view(),
-        name='read_my_problem'
     ),
     path('api/v1/warnings', problems.WarningView.as_view(), name='create_warning'),
     path('api/v1/warnings', problems.WarningView.as_view(), name='create_warning')

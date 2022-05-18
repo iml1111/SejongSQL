@@ -84,6 +84,14 @@ class ProblemSrz(serializers.Serializer):
     content = serializers.CharField(max_length=20000)
 
 
+class ProblemInGroupSrz(serializers.Serializer):
+    id = serializers.IntegerField()
+    title = serializers.CharField(max_length=100)
+    status = serializers.CharField(max_length=100)
+    problem_warnings = serializers.IntegerField()
+    user_warnings = serializers.IntegerField()
+
+
 class WarningSrz(serializers.ModelSerializer):
     class Meta:
         model = Warning
