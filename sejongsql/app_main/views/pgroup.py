@@ -148,13 +148,15 @@ class PgroupView(APIView):
             return FORBIDDEN("can't find time. (exam on, activate on)")
 
         if not data['activate']:
-            data['activate_start'] = datetime(1997,12,8,0,0,0)
-            data['activate_end'] = datetime(1997,12,8,0,0,0)
+            data['activate_start'] = str(datetime(1997,12,8,0,0,0))
+            data['activate_end'] = str(datetime(1997,12,8,0,0,0))
         #비활성화이면,  불가능한 시간대로 설정
 
         try:
-            datetime.strptime(data['activate_start'],"%Y-%m-%d %H:%M:%S")
-            datetime.strptime(data['activate_end'],"%Y-%m-%d %H:%M:%S")
+            if data['activate_start']:
+                datetime.strptime(data['activate_start'],"%Y-%m-%d %H:%M:%S")
+            if data['activate_end']:
+                datetime.strptime(data['activate_end'],"%Y-%m-%d %H:%M:%S")
         except: 
             return BAD_REQUEST("Incorrect date format.")
 
