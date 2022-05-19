@@ -1,7 +1,7 @@
 from django.urls import path
 from .views import index, users, classes, pgroup, envs, problems
 
-from .views import async_sample
+from .views import async_sample, error_sample
 
 app_name = 'app_main'
 
@@ -9,6 +9,8 @@ app_name = 'app_main'
 urlpatterns = [
     path('', index.IndexView.as_view(), name='index'),
     path('async-sample', async_sample.AsyncSample.as_view(), name='async_sample'),
+
+    path('error-sample', error_sample.ErrorSample.as_view(), name='error_sample'),
 
     path('api/auth/signup', users.SignupView.as_view(), name='signup'),
     path('api/auth/signin', users.SigninView.as_view(), name='signin'),
