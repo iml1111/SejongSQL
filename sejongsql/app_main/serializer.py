@@ -1,12 +1,5 @@
-from os import set_inheritable
 from rest_framework import serializers
-from .models import (
-    User,
-    ProblemGroup,
-    EnvBelongTable,
-    Warning
-)
-from django.db.models import F
+from .models import User, EnvBelongTable, Warning
 
 
 class UserSrz(serializers.ModelSerializer):
@@ -47,6 +40,7 @@ class ProblemGroupSrz(serializers.Serializer):
     activate = serializers.BooleanField()
     activate_start = serializers.DateTimeField()
     activate_end = serializers.DateTimeField()
+
 
 class ClassEnvSrz(serializers.Serializer):
     id = serializers.IntegerField()
