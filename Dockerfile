@@ -20,7 +20,7 @@ WORKDIR /home/sejongsql/
 
 RUN apk update && \
 	apk add --update --no-cache bash curl jpeg-dev mariadb-connector-c-dev && \
-	mkdir /home/log /home/assets && \
+	mkdir /home/assets && \
 	pip install --no-index \
 	--find-links=/home/sejongsql/wheels \
 	-r requirements.txt && \
@@ -31,6 +31,7 @@ EXPOSE 5000
 
 CMD ["gunicorn","-w","2", \
 	"--bind","0.0.0.0:5000", \
-	"--access-logfile", "/home/log/access.log", \
-	"--error-logfile", "/home/log/error.log", \
+	"--log-level", "debug", \
+	"--access-logfile", "-", \
+	"--access-logformat", "%(h)s [ACCESS] %(l)s %(u)s %(t)s '%(r)s' %(s)s %(b)s '%(f)s' '%(a)s'", \
 	"config.wsgi:application"]

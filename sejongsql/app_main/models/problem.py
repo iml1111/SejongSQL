@@ -32,39 +32,36 @@ class Problem(models.Model):
 
 
 class UserSolveProblem(models.Model):       
-    p_id = models.ForeignKey(Problem, on_delete=models.CASCADE, db_column='p_id', null=True)
-    user_id = models.ForeignKey(User, on_delete=models.CASCADE, db_column='user_id', null=True)
-    accuracy = models.BooleanField()
-    efficiency = models.IntegerField()
+    p_id = models.ForeignKey(Problem, on_delete=models.SET_NULL, db_column='p_id', null=True)
+    user_id = models.ForeignKey(User, on_delete=models.SET_NULL, db_column='user_id', null=True)
+    accuracy = models.BooleanField(default=None, null=True)
     submit = models.BooleanField(default=0)
     query = models.CharField(max_length=1000)
     created_at = models.DateTimeField(auto_now_add=True)
-    ip = models.CharField(max_length=100)
 
     class Meta:
         db_table = 'ssql_user_solve_problem'
 
 
-class ExplainWarning(models.Model):
+class Warning(models.Model):
     name = models.CharField(max_length=100)
     content = models.CharField(max_length=100)
-    point = models.IntegerField()
 
     class Meta:
-        db_table = 'ssql_explain_warning'
+        db_table = 'ssql_warning'
 
 
-class WarningMatchUp(models.Model):
-    warning_id = models.ForeignKey(ExplainWarning, on_delete=models.CASCADE, db_column='warning_id')
-    up_id = models.ForeignKey(UserSolveProblem, on_delete=models.CASCADE, db_column='up_id')
+class WarningBelongUp(models.Model):
+    warning_id = models.ForeignKey(Warning, on_delete=models.CASCADE, db_column='warning_id')
+    up_id = models.ForeignKey(UserSolveProblem, on_delete=models.SET_NULL, db_column='up_id', null=True)
 
     class Meta:
-        db_table = 'ssql_warning_match_up'
+        db_table = 'ssql_warning_belong_up'
 
 
-class WarningMatchProblem(models.Model):
+class WarningBelongProblem(models.Model):
     p_id = models.ForeignKey(Problem, on_delete=models.CASCADE, db_column='p_id')
-    warning_id = models.ForeignKey(ExplainWarning, on_delete=models.CASCADE, db_column='warning_id')
+    warning_id = models.ForeignKey(Warning, on_delete=models.CASCADE, db_column='warning_id')
 
     class Meta:
-        db_table = 'ssql_warning_match_problem'
+        db_table = 'ssql_warning_belong_problem'

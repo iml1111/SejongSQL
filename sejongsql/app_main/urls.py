@@ -1,11 +1,16 @@
 from django.urls import path
-from .views import index, users, classes, pgroup, envs
+from .views import index, users, classes, pgroup, envs, problems
+
+from .views import async_sample, error_sample
 
 app_name = 'app_main'
 
 # "/" 로 시작합니다.
 urlpatterns = [
     path('', index.IndexView.as_view(), name='index'),
+    path('async-sample', async_sample.AsyncSample.as_view(), name='async_sample'),
+
+    path('error-sample', error_sample.ErrorSample.as_view(), name='error_sample'),
 
     path('api/auth/signup', users.SignupView.as_view(), name='signup'),
     path('api/auth/signin', users.SigninView.as_view(), name='signin'),
@@ -34,7 +39,7 @@ urlpatterns = [
         name='create_update_delete_class_user'
     ),
     path(
-        'api/v1/class/<int:class_id>/user/<str:user_id>',
+        'api/v1/class/<int:class_id>/user/<str:sejong_id>',
         classes.UserSearchView.as_view(),
         name='read_all_user'
     ),
@@ -48,18 +53,40 @@ urlpatterns = [
     ),
     path('api/v1/class/<int:class_id>/envs',
         envs.EnvView.as_view(),
-        name='create_read_env'
-    ),
-    path('api/v1/class/<int:class_id>/envs/<int:env_id>',
-        envs.EnvView.as_view(),
-        name='delete_env'
-    ),
-    path('api/v1/class/<int:class_id>/envs/<int:env_id>/copy',
-        envs.MyEnvView.as_view(),
-        name='copy_env'
+        name='read_env_from_class'
     ),
     path('api/v1/envs',
-        envs.MyEnvView.as_view(),
+        envs.EnvView.as_view(),
+        name='create_env'
+    ),
+    path('api/v1/envs/<int:env_id>',
+        envs.EnvView.as_view(),
+        name='delete_my_env'
+    ),
+    path('api/v1/class/<int:class_id>/envs/<int:env_id>',
+        envs.ConnectEnvView.as_view(),
+        name='connect_disconnect_my_env_to_class'
+    ),
+    path('api/v1/users/me/envs',
+        envs.ConnectEnvView.as_view(),
         name='read_my_env'
-    )
+    ),
+    path('api/v1/class/<int:class_id>/pgroups/<int:pgroup_id>/problems',
+        problems.ProblemsInPgroupView.as_view(),
+        name='create_problems_in_pgroup'
+    ),
+    path('api/v1/class/<int:class_id>/problems/<int:problem_id>',
+        problems.ProblemView.as_view(),
+        name='update_delete_problems'
+    ),
+    path('api/v1/problems/<int:problem_id>',
+        problems.ProblemView.as_view(),
+        name='read_problems'
+    ),
+    path('api/v1/problems/<int:problem_id>/run',
+        problems.ProblemRunView.as_view(),
+        name='run_problem'
+    ),
+    path('api/v1/warnings', problems.WarningView.as_view(), name='create_warning'),
+    path('api/v1/warnings', problems.WarningView.as_view(), name='create_warning')
 ]
