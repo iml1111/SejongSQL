@@ -12,7 +12,7 @@ PyJWT==2.3.0
 python-dotenv==0.19.2
 pytz==2021.3
 requests==2.27.1
-sejong-univ-auth==0.1.2
+sejong-univ-auth==0.3.4
 soupsieve==2.3.2.post1
 sqlparse==0.4.2
 tzdata==2021.5
