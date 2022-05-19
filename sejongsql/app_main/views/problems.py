@@ -402,13 +402,15 @@ class ProblemRunView(APIView):
         if not data['query']:
             return BAD_REQUEST("query does not exist.")
 
+        query = data['query']
+        if not query.endswith(';'):
+            return BAD_REQUEST("query needs semicolon ';'")
+
         if not problem.env_id.id:
             return FORBIDDEN("can't find env.")
         env = Env.objects.filter(id=problem.env_id.id).first()
         if not env:
             return FORBIDDEN("can't find env.")
-
-        query = data['query']
 
         db = get_db()
         cursor = db.cursor()
