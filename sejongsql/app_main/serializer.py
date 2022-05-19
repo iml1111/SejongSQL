@@ -1,11 +1,5 @@
-from os import set_inheritable
 from rest_framework import serializers
-from .models import (
-    User,
-    ProblemGroup,
-    EnvBelongTable
-)
-from django.db.models import F
+from .models import User, EnvBelongTable, Warning
 
 
 class UserSrz(serializers.ModelSerializer):
@@ -47,6 +41,7 @@ class ProblemGroupSrz(serializers.Serializer):
     activate_start = serializers.DateTimeField()
     activate_end = serializers.DateTimeField()
 
+
 class ClassEnvSrz(serializers.Serializer):
     id = serializers.IntegerField()
     owner = serializers.CharField(max_length=100)
@@ -76,4 +71,22 @@ class MyEnvSrz(serializers.Serializer):
             env_id=obj.id
         ).values_list('table_name')
         return [key[0] for key in table]
-        
+
+
+class ProblemSrz(serializers.Serializer):
+    title = serializers.CharField(max_length=100)
+    content = serializers.CharField(max_length=20000)
+
+
+class ProblemInGroupSrz(serializers.Serializer):
+    id = serializers.IntegerField()
+    title = serializers.CharField(max_length=100)
+    status = serializers.CharField(max_length=100)
+    problem_warnings = serializers.IntegerField()
+    user_warnings = serializers.IntegerField()
+
+
+class WarningSrz(serializers.ModelSerializer):
+    class Meta:
+        model = Warning
+        fields = '__all__'
