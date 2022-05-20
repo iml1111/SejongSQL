@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import index, users, classes, pgroup, envs, problems
+from .views import index, users, classes, pgroup, envs, problems, management
 
 from .views import async_sample, error_sample
 
@@ -8,6 +8,7 @@ app_name = 'app_main'
 # "/" 로 시작합니다.
 urlpatterns = [
     path('', index.IndexView.as_view(), name='index'),
+    path('management/worker-status', management.WorkerStatusView.as_view(), name='management_worker'),
     path('async-sample', async_sample.AsyncSample.as_view(), name='async_sample'),
 
     path('error-sample', error_sample.ErrorSample.as_view(), name='error_sample'),
