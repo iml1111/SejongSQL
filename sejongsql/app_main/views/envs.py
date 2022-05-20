@@ -149,6 +149,7 @@ class EnvView(APIView):
 
         db = get_db()
         cursor = db.cursor()
+        cursor.execute(f"DROP user '{env.account_name}';")
         cursor.execute(f"DROP DATABASE IF EXISTS {env.db_name};")
         db.close()
 
