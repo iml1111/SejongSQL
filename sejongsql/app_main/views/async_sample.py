@@ -54,7 +54,7 @@ class AsyncSample(APIView):
         # 전역에 선언된 Async Task Queue 호출
         q = get_async_queue(worker_num=3, qsize=100)
         # 비동기 큐에 원하는 태스크 삽입.
-        q.add(freeze(wait_and_hello)(sec=1))
+        q.add(freeze(wait_and_hello)(sec=4))
         q.add(freeze(mysql_connect))
         q.add(freeze(orm_connect))
 
