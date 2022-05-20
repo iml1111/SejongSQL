@@ -1,5 +1,5 @@
-import os
-import random
+import os, string
+from random import choice
 from uuid import uuid4
 from app_main.models import Env, EnvBelongClass, EnvBelongTable, Queue
 from module.query_analyzer.mysql.query_parser import parse
@@ -25,13 +25,14 @@ def get_db(
 
 def create_env(user, query, env_name, classes=None):
     uuid = str(uuid4()).replace('-','_')
+    strings = string.printable[:63]
     env = Env(
         user_id=user,
         name=env_name,
         db_name=f"sejongsql_{uuid}",
         file_name=f"{uuid4()}.sql",
-        account_name=uuid[:30],
-        account_pw=f"{random.randrange(1000000,9999999)}"
+        account_name=f"{''.join([choice(strings) for _ in range(30)])}",
+        account_pw=f"{''.join([choice(strings) for _ in range(30)])}"
     )
     env.save()
 
