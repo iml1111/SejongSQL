@@ -1,5 +1,4 @@
 import os
-from django.conf import settings
 from uuid import uuid4
 from app_main.models import Env, EnvBelongClass, EnvBelongTable, Queue
 from module.query_analyzer.mysql.query_parser import parse
@@ -42,10 +41,22 @@ def create_env(user, query, env_name, classes=None):
             class_id=classes,
         )
         ebc.save()
+    
+    try:
+        if not os.path.exists(os.environ['SSQL_SQL_ORIGINAL_FILE']):
+            os.makedirs(os.environ['SSQL_SQL_ORIGINAL_FILE'])
+        if not os.path.exists(os.environ['SSQL_SQL_PARSED_FILE']):
+            os.makedirs(os.environ['SSQL_SQL_PARSED_FILE'])
+    except:
+        env.result = 'failed to save sql_file'
+        env.save()
+        queue.status = 'complete'
+        queue.save()
+        return
 
     # 원본파일 저장
     with open(
-        f"{getattr(settings, 'ORIGINAL_SQL_FILE', None)}{env.file_name}",
+        f"{os.environ['SSQL_SQL_ORIGINAL_FILE']}/{env.file_name}",
         'w',
         encoding='utf-8'
     ) as f:
@@ -62,7 +73,7 @@ def create_env(user, query, env_name, classes=None):
 
     # SQL File 파싱 과정
     with open(
-        f"{getattr(settings, 'PARSED_SQL_FILE', None)}{env.file_name}",
+        f"{os.environ['SSQL_SQL_PARSED_FILE']}/{env.file_name}",
         'w',
         encoding='utf-8'
     ) as f:
