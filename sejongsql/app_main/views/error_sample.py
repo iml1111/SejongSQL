@@ -1,6 +1,7 @@
 from django.conf import settings
 from rest_framework.views import APIView
 from module.async_queue import get_async_queue, freeze
+from module.response import OK
 import time
 
 class ErrorSample(APIView):
@@ -16,6 +17,7 @@ class AsyncTestView(APIView):
             qsize=getattr(settings, 'ASYNC_QUEUE_SIZE', None),
         )
         q.add(freeze(hello_world)())
+        return OK()
 
 
 def hello_world():
