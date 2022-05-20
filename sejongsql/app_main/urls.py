@@ -12,6 +12,8 @@ urlpatterns = [
 
     path('error-sample', error_sample.ErrorSample.as_view(), name='error_sample'),
 
+    path('hello-world', error_sample.AsyncTestView.as_view(), name='hello-world'),
+
     path('api/auth/signup', users.SignupView.as_view(), name='signup'),
     path('api/auth/signin', users.SigninView.as_view(), name='signin'),
     path('api/v1/users/me', users.UserView.as_view(), name='users-me'),
