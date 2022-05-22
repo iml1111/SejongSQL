@@ -32,13 +32,14 @@ class ClassView(APIView):
 
         if data['class_id']:
             if not user.is_sa:
-                if not Class.objects.filter(
-                    Q(id=data['class_id']),
-                    Q(userbelongclass__user_id=user.id),
-                    Q(userbelongclass__type='prof') |
-                    Q(userbelongclass__type='ta') |
-                    Q(userbelongclass__type='st', activate=1)    #학생은 활성화 상태인 분반만 줌.
-                ).exists():
+                my_class = UserBelongClass.objects.filter(
+                    Q(class_id=data['class_id']),
+                    Q(user_id=user.id),
+                    Q(type='prof') |
+                    Q(type='ta') |
+                    Q(type='st', class_id__activate=1)    #학생은 활성화 상태인 분반만 줌.
+                ).first()
+                if not my_class:
                     return FORBIDDEN("can't find class.")
             
             classes = Class.objects.filter(
@@ -51,6 +52,7 @@ class ClassView(APIView):
                 return FORBIDDEN("can't find class.")
             
             class_srz = ClassSrz(classes).data
+            class_srz['type'] = my_class.type
             return OK(class_srz)
         else:
             if user.is_sa:
@@ -68,10 +70,9 @@ class ClassView(APIView):
                 ).values_list('id')   #본인이 속한 분반 반환
 
                 classes = Class.objects.filter(
-                    id__in=my_class,
                     userbelongclass__type='prof'
                 ).annotate(
-                    prof=F('userbelongclass__user_id')
+                    prof=F('userbelongclass__user_id'),
                 )
 
             class_srz = ClassSrz(classes, many=True).data

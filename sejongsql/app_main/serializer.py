@@ -11,7 +11,7 @@ class UserSrz(serializers.ModelSerializer):
 class SearchUserSrz(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ('id', 'sejong_id', 'name')
+        fields = ('id', 'sejong_id', 'name', 'major')
 
 
 class UserInClassSrz(serializers.Serializer):
