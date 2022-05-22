@@ -8,7 +8,7 @@ from app_main.serializer import UserSrz
 from django.utils import timezone
 from django.contrib.auth.hashers import make_password, check_password
 from django_jwt_extended import jwt_required, create_access_token, create_refresh_token, get_jwt_identity
-from sejong_univ_auth import auth
+from sejong_univ_auth import auth, DosejongSession
 
 
 class SignupView(APIView):
@@ -162,7 +162,8 @@ class SejongAuthView(APIView):
 
         sejong_auth = auth(
             id=data['sejong_id'],
-            password=data['sejong_pw']
+            password=data['sejong_pw'],
+            methods=DosejongSession
         )
         if (not sejong_auth.success
             or sejong_auth.is_auth is None):
@@ -172,6 +173,8 @@ class SejongAuthView(APIView):
             return FORBIDDEN("Sejong ID or PW is incorrect.")
 
         user.sejong_id = data['sejong_id']
+        # TODO: 교수님 계정도 학과가 반환되는지 확인이 필요함.
+        user.major = sejong_auth.body['major']
         user.save()
 
         return CREATED()

@@ -4,6 +4,7 @@ class User(models.Model):
     id = models.CharField(max_length=100, primary_key=True)
     pw = models.CharField(max_length=88)
     sejong_id = models.CharField(max_length=100, default=None, null=True)
+    major = models.CharField(max_length=100, default=None, null=True)
     name = models.CharField(max_length=100)
     role = models.CharField(max_length=100, default='general')
     created_at = models.DateTimeField(auto_now_add=True) 
