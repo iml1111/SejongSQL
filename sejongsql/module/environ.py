@@ -1,30 +1,38 @@
-import os
+import os, string
+from random import choice
 from uuid import uuid4
 from app_main.models import Env, EnvBelongClass, EnvBelongTable, Queue
 from module.query_analyzer.mysql.query_parser import parse
 from MySQLdb import connect, cursors
 
 
-def get_db():
+def get_db(
+    user=os.environ['SSQL_ORIGIN_MYSQL_USER'],
+    passwd=os.environ['SSQL_ORIGIN_MYSQL_PASSWORD']
+):
     """
     DB Connection을 반환하는 함수
     """
     return connect(
         host=os.environ['SSQL_ORIGIN_MYSQL_HOST'],
         port=int(os.environ['SSQL_ORIGIN_MYSQL_PORT']),
-        user=os.environ['SSQL_ORIGIN_MYSQL_USER'],
-        passwd=os.environ['SSQL_ORIGIN_MYSQL_PASSWORD'],
+        user=user,
+        passwd=passwd,
         charset='utf8mb4',
         cursorclass=cursors.DictCursor
     )
 
 
 def create_env(user, query, env_name, classes=None):
+    uuid = str(uuid4()).replace('-','_')
+    strings = string.printable[:63]
     env = Env(
         user_id=user,
         name=env_name,
-        db_name=f"sejongsql_{str(uuid4()).replace('-','_')}",
-        file_name=f"{uuid4()}.sql"
+        db_name=f"sejongsql_{uuid}",
+        file_name=f"{uuid4()}.sql",
+        account_name=f"{''.join([choice(strings) for _ in range(30)])}",
+        account_pw=f"{''.join([choice(strings) for _ in range(30)])}"
     )
     env.save()
 
@@ -96,9 +104,15 @@ def create_env(user, query, env_name, classes=None):
         env.save()
         queue.status = 'complete'
         queue.save()
-        return
-    finally:
         db.close()
+        return
+    
+    #계정 생성
+    cursor.execute(f"CREATE user '{env.account_name}'@'%' identified with 'mysql_native_password' by '{env.account_pw}';")
+    cursor.execute(f"GRANT all privileges on {env.db_name}.* to '{env.account_name}'@'%' with grant option;")
+    cursor.execute(f"flush privileges;")
+    db.commit()
+    db.close()
 
     # EnvBelongTable DB 적용
     for name in result.tables:

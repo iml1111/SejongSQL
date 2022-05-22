@@ -6,6 +6,8 @@ class Env(models.Model):
     user_id = models.ForeignKey(User, on_delete=models.CASCADE, db_column='user_id')
     name = models.CharField(max_length=100)
     db_name = models.CharField(max_length=100)
+    account_name = models.CharField(max_length=32)
+    account_pw = models.CharField(max_length=100)
     file_name = models.CharField(max_length=100)
     result = models.CharField(max_length=200, default='working')
     created_at = models.DateTimeField(auto_now_add=True)
