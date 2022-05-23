@@ -1,5 +1,7 @@
+from django.utils import timezone
 from rest_framework import serializers
 from .models import User, EnvBelongTable, Warning
+from django.db.models import F, Q
 
 
 class UserSrz(serializers.ModelSerializer):
@@ -11,7 +13,7 @@ class UserSrz(serializers.ModelSerializer):
 class SearchUserSrz(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ('id', 'sejong_id', 'name')
+        fields = ('id', 'sejong_id', 'name', 'major')
 
 
 class UserInClassSrz(serializers.Serializer):
@@ -22,13 +24,57 @@ class UserInClassSrz(serializers.Serializer):
     created_at = serializers.DateTimeField()
 
 
-class ClassSrz(serializers.Serializer):
-    id = serializers.CharField(max_length=100)
+class SAClassSrz(serializers.Serializer):
+    id = serializers.IntegerField()
     name = serializers.CharField(max_length=100)
     semester = serializers.CharField(max_length=100)
     comment = serializers.CharField(max_length=1000)
     activate = serializers.BooleanField(default=1)
     prof = serializers.CharField(max_length=100)
+    type = serializers.CharField(max_length=100)
+    pgroup = serializers.SerializerMethodField()
+
+    def get_pgroup(self, obj):
+        pgroup = obj.problemgroup_set.values('id', 'name').order_by('id')
+        return pgroup
+    
+
+class ClassSrz(serializers.Serializer):
+    id = serializers.IntegerField()
+    name = serializers.CharField(max_length=100)
+    semester = serializers.CharField(max_length=100)
+    comment = serializers.CharField(max_length=1000)
+    activate = serializers.BooleanField(default=1)
+    prof = serializers.SerializerMethodField()
+    type = serializers.CharField(max_length=100)
+    pgroup = serializers.SerializerMethodField()
+
+
+    def get_pgroup(self, obj):
+        if obj.type in ('prof', 'ta'):
+            pgroup = obj.problemgroup_set.values('id', 'name').order_by('id')
+            return pgroup
+        else:
+            pgroup = obj.problemgroup_set.filter(
+                Q(exam=1) | #시험모드이거나
+                (
+                    (Q(activate_start=None) | Q(activate_start__lt=timezone.now())) &
+                    (Q(activate_end=None) | Q(activate_end__gt=timezone.now()))
+                )   #활성화일 때만 반환
+            ).values(
+                'id',
+                'name'
+            ).order_by('id')
+            return pgroup
+
+
+    def get_prof(self, obj):
+        prof = obj.userbelongclass_set.filter(
+            type='prof'
+        ).annotate(
+            prof_name=F("user_id__name")
+        ).first()
+        return prof.prof_name
 
 
 class ProblemGroupSrz(serializers.Serializer):
@@ -51,6 +97,7 @@ class ClassEnvSrz(serializers.Serializer):
     status = serializers.CharField(max_length=200)
     table = serializers.SerializerMethodField()
 
+
     def get_table(self, obj):
         table = EnvBelongTable.objects.filter(
             env_id=obj.id
@@ -65,6 +112,7 @@ class MyEnvSrz(serializers.Serializer):
     created_at = serializers.DateTimeField()
     status = serializers.CharField(max_length=200)
     table = serializers.SerializerMethodField()
+
 
     def get_table(self, obj):
         table = EnvBelongTable.objects.filter(

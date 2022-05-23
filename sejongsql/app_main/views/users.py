@@ -1,10 +1,10 @@
 from rest_framework.views import APIView
 from module.response import OK, UNAUTHORIZED, NO_CONTENT, BAD_REQUEST, FORBIDDEN, CONFLICT, CREATED
-from module.validator import Validator, Json
+from module.validator import Validator, Json, Path
 from module.rules import MaxLen, MinLen
-from module.decorator import login_required, get_user
+from module.decorator import login_required, get_user, sa_required
 from app_main.models import User
-from app_main.serializer import UserSrz
+from app_main.serializer import UserSrz, SearchUserSrz
 from django.utils import timezone
 from django.contrib.auth.hashers import make_password, check_password
 from django_jwt_extended import jwt_required, create_access_token, create_refresh_token, get_jwt_identity
@@ -96,7 +96,7 @@ class UserView(APIView):
             request, path, params=[
                 Json('name', str, optional=True),
                 Json('old_pw', str, optional=True),
-                Json('new_pw', str, optional=True),
+                Json('new_pw', str, optional=True, rules=MinLen(8)),
             ])
             
         if not validator.is_valid:
@@ -178,3 +178,48 @@ class SejongAuthView(APIView):
         user.save()
 
         return CREATED()
+
+
+class TokenView(APIView):
+
+    @jwt_required(refresh=True)    
+    def get(self, request):
+        """Token Refresh API"""
+
+        identity = get_jwt_identity(request)
+        
+        return OK({
+            'access_token': create_access_token(identity=identity),
+            'refresh_token': create_refresh_token(identity=identity),
+        })
+
+
+class AllUserView(APIView):
+
+    @jwt_required()
+    @login_required(False)
+    @sa_required
+    def get(self, request, **path):
+        """
+        전체 사용자 검색 API
+        SA 호출가능
+        """
+
+        user = get_user(request)
+        validator = Validator(
+            request, path, params=[
+                Path('user_name', str),
+            ])
+
+        if not validator.is_valid:
+            return BAD_REQUEST(validator.error_msg)
+        data = validator.data
+        
+        if not user.is_sa:
+            return FORBIDDEN("Only SA can access.")
+
+        obj = User.objects.filter(name__startswith=data['user_name'])
+
+        user_srz = SearchUserSrz(obj, many=True)
+        return OK(user_srz.data)
+
