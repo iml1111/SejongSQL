@@ -1,3 +1,4 @@
+from unittest.util import _MAX_LENGTH
 from django.utils import timezone
 from rest_framework import serializers
 from .models import (
@@ -222,6 +223,17 @@ class AllInProblemSrz(serializers.Serializer):
                 'content': warning['content']
             })
         return result
+
+
+class StatusSrz(serializers.ModelSerializer):
+    sejong_id = serializers.CharField(max_length=100)
+    pg_name = serializers.CharField(max_length=100)
+    p_title = serializers.CharField(max_length=100)
+    p_created_at = serializers.DateTimeField()
+
+    class Meta:
+        model = UserSolveProblem
+        fields = ('user_id', 'sejong_id', 'pg_name', 'p_id', 'p_title', 'p_created_at')
 
 
 class WarningSrz(serializers.ModelSerializer):
