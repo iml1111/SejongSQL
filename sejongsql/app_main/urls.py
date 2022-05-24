@@ -17,13 +17,14 @@ urlpatterns = [
 
     path('api/auth/signup', users.SignupView.as_view(), name='signup'),
     path('api/auth/signin', users.SigninView.as_view(), name='signin'),
-    path('api/v1/users/me', users.UserView.as_view(), name='users-me'),
+    path('api/v1/users/me', users.UserView.as_view(), name='read_update_delete_me'),
     path(
-        'api/v1/users/<str:user_id>',
-        users.UserView.as_view(),
-        name='crud_my_userinfo'
+        'api/v1/users/<str:user_name>',
+        users.AllUserView.as_view(),
+        name='search_all_user'
     ),
     path('api/auth/sejong', users.SejongAuthView.as_view(), name='sejong-auth'),
+    path('api/auth/token/refresh', users.TokenView.as_view(), name='refresh-token'),
 
     path('api/v1/class', classes.ClassView.as_view(), name='create_class'),
     path(

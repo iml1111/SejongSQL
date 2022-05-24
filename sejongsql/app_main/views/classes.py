@@ -4,7 +4,7 @@ from module.validator import Validator, Json, Path
 from module.decorator import login_required, sa_required, get_user
 from django_jwt_extended import jwt_required
 from app_main.models import User, Class, UserBelongClass
-from app_main.serializer import ClassSrz, SearchUserSrz , UserInClassSrz
+from app_main.serializer import ClassSrz, SearchUserSrz , UserInClassSrz, SAClassSrz
 from django.db.models import F, Q
 
 
@@ -29,53 +29,69 @@ class ClassView(APIView):
         if not validator.is_valid:
             return BAD_REQUEST(validator.error_msg)
         data = validator.data
-
-        if data['class_id']:
-            if not user.is_sa:
-                if not Class.objects.filter(
-                    Q(id=data['class_id']),
+        
+        if user.is_sa:
+            if data['class_id']:
+                classes = Class.objects.filter(
+                    id=data['class_id'],
+                    userbelongclass__type='prof',
+                ).annotate(
+                    prof=F("userbelongclass__user_id__name")
+                ).prefetch_related(
+                    'problemgroup_set'
+                ).first()
+                if not classes:
+                    return FORBIDDEN("can't find class.")
+                
+                classes.type = "Super Admin"
+                class_srz = SAClassSrz(classes)
+                return OK(class_srz.data)
+            else:
+                classes = Class.objects.filter(
+                    userbelongclass__type='prof'
+                ).annotate(
+                    prof=F("userbelongclass__user_id__name")
+                ).prefetch_related(
+                    'problemgroup_set'
+                )
+                for obj in classes:
+                    obj.type = "Super Admin"
+                
+                class_srz = SAClassSrz(classes, many=True)
+                return OK(class_srz.data)
+        else:
+            if data['class_id']:
+                classes = Class.objects.filter(
                     Q(userbelongclass__user_id=user.id),
                     Q(userbelongclass__type='prof') |
                     Q(userbelongclass__type='ta') |
-                    Q(userbelongclass__type='st', activate=1)    #학생은 활성화 상태인 분반만 줌.
-                ).exists():
-                    return FORBIDDEN("can't find class.")
-            
-            classes = Class.objects.filter(
-                id=data['class_id'],
-                userbelongclass__type='prof'
-            ).annotate(
-                prof=F('userbelongclass__user_id')
-            ).first()
-            if not classes:
-                return FORBIDDEN("can't find class.")
-            
-            class_srz = ClassSrz(classes).data
-            return OK(class_srz)
-        else:
-            if user.is_sa:
-                classes = Class.objects.filter(
-                    userbelongclass__type='prof'
+                    Q(userbelongclass__type='st', activate=1)
                 ).annotate(
-                    prof=F('userbelongclass__user_id')
-                )
+                    type=F("userbelongclass__type")
+                ).prefetch_related(
+                    'userbelongclass_set',
+                    'problemgroup_set'
+                ).first()
+                if not classes:
+                    return FORBIDDEN("can't find class.")                   
+    
+                class_srz = ClassSrz(classes)
+                return OK(class_srz.data)
             else:
-                my_class = Class.objects.filter(
-                    Q(userbelongclass__user_id=user.id),
-                    Q(userbelongclass__type = 'prof') |
-                    Q(userbelongclass__type = 'ta') |
-                    Q(userbelongclass__type = 'st', activate=1)
-                ).values_list('id')   #본인이 속한 분반 반환
-
                 classes = Class.objects.filter(
-                    id__in=my_class,
-                    userbelongclass__type='prof'
+                    Q(userbelongclass__user_id=user.id),
+                    Q(userbelongclass__type='prof') |
+                    Q(userbelongclass__type='ta') |
+                    Q(userbelongclass__type='st', activate=1)
                 ).annotate(
-                    prof=F('userbelongclass__user_id')
+                    type=F("userbelongclass__type")
+                ).prefetch_related(
+                    'userbelongclass_set',
+                    'problemgroup_set'
                 )
 
-            class_srz = ClassSrz(classes, many=True).data
-            return OK(class_srz)
+                class_srz = ClassSrz(classes, many=True)
+                return OK(class_srz.data)
 
 
     @jwt_required()
