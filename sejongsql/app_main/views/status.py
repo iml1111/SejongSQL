@@ -1,10 +1,10 @@
 from rest_framework.views import APIView
-from module.response import OK, NO_CONTENT, BAD_REQUEST, FORBIDDEN, CREATED
+from module.response import OK, BAD_REQUEST, FORBIDDEN
 from module.validator import Validator, Json, Path
 from module.decorator import login_required, get_user
-from app_main.models import ProblemGroup, Problem, Env, UserBelongClass, UserSolveProblem
+from app_main.models import ProblemGroup, UserBelongClass, UserSolveProblem
 from app_main.serializer import StatusSrz
-from django.db.models import F
+from django.db.models import F,  Case, When
 from django_jwt_extended import jwt_required
 
 
@@ -41,23 +41,12 @@ class StatusView(APIView):
                     user_id__sejong_id=data['sejong_id'],
                     p_id__pg_id=data['pgroup_id'],
                     submit=1
-                ).annotate(
-                    sejong_id=F('user_id__sejong_id'),
-                    pg_name=F('p_id__pg_id__name'),
-                    p_title=F('p_id__title'),
-                    p_created_at=F('created_at')
-                ).order_by('-created_at')
-
+                )
             elif data['sejong_id']:
                 obj = UserSolveProblem.objects.filter(
                     user_id__sejong_id=data['sejong_id'],
                     submit=1
-                ).annotate(
-                    sejong_id=F('user_id__sejong_id'),
-                    pg_name=F('p_id__pg_id__name'),
-                    p_title=F('p_id__title'),
-                    p_created_at=F('created_at')
-                ).order_by('-created_at')
+                )
             else:
                 user_in_class = UserBelongClass.objects.filter(
                     class_id=data['class_id'],
@@ -69,24 +58,67 @@ class StatusView(APIView):
                         user_id__in=user_in_class,
                         p_id__pg_id=data['pgroup_id'],
                         submit=1
-                    ).annotate(
-                        sejong_id=F('user_id__sejong_id'),
-                        pg_name=F('p_id__pg_id__name'),
-                        p_title=F('p_id__title'),
-                        p_created_at=F('created_at')
-                    ).order_by('-created_at')
+                    )
                 else:
                     obj = UserSolveProblem.objects.filter(
                         user_id__in=user_in_class,
                         submit=1
-                    ).annotate(
-                        sejong_id=F('user_id__sejong_id'),
-                        pg_name=F('p_id__pg_id__name'),
-                        p_title=F('p_id__title'),
-                        p_created_at=F('created_at')
-                    ).order_by('-created_at')
-        
-            status = StatusSrz(obj, many=True)
+                    )
+
+            status = obj.annotate(
+                sejong_id=F('user_id__sejong_id'),
+                pg_name=F('p_id__pg_id__name'),
+                p_title=F('p_id__title'),
+                p_created_at=F('created_at')
+            ).order_by('-created_at')
+
+            for i in status:
+                i.mine = True
+            status = StatusSrz(status, many=True)
             return OK(status.data)
         else:   #학생
-            ...
+            if data['sejong_id'] and data['pgroup_id']:
+                obj = UserSolveProblem.objects.filter(
+                    user_id__sejong_id=data['sejong_id'],
+                    p_id__pg_id=data['pgroup_id'],
+                    submit=1
+                )   
+            elif data['sejong_id']:
+                obj = UserSolveProblem.objects.filter(
+                    user_id__sejong_id=data['sejong_id'],
+                    submit=1
+                )
+            else:
+                user_in_class = UserBelongClass.objects.filter(
+                    class_id=data['class_id'],
+                    type='st'
+                ).values_list('user_id')
+
+                if data['pgroup_id']:
+                    obj = UserSolveProblem.objects.filter(
+                        user_id__in=user_in_class,
+                        p_id__pg_id=data['pgroup_id'],
+                        submit=1
+                    )
+                else:
+                    obj = UserSolveProblem.objects.filter(
+                        user_id__in=user_in_class,
+                        submit=1
+                    )
+
+            status = obj.annotate(
+                sejong_id=F('user_id__sejong_id'),
+                pg_name=F('p_id__pg_id__name'),
+                p_title=F('p_id__title'),
+                p_created_at=F('created_at'),
+                mine=Case(
+                    When(
+                        user_id__sejong_id=user.sejong_id,
+                        then=True
+                    ),
+                    default=False
+                )
+            ).order_by('-created_at')
+
+            status = StatusSrz(status, many=True)
+            return OK(status.data)
