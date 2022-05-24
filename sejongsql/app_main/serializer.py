@@ -226,15 +226,16 @@ class AllInProblemSrz(serializers.Serializer):
 
 
 class StatusSrz(serializers.ModelSerializer):
+    usp_id = serializers.IntegerField()
     sejong_id = serializers.CharField(max_length=100)
     pg_name = serializers.CharField(max_length=100)
     p_title = serializers.CharField(max_length=100)
     p_created_at = serializers.DateTimeField()
-    mine = serializers.BooleanField()
+    access = serializers.BooleanField()
 
     class Meta:
         model = UserSolveProblem
-        fields = ('user_id', 'sejong_id', 'pg_name', 'p_id', 'p_title', 'p_created_at', 'mine')
+        fields = ('usp_id', 'user_id', 'sejong_id', 'pg_name', 'p_id', 'p_title', 'p_created_at', 'access')
 
 
 class WarningSrz(serializers.ModelSerializer):
