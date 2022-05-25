@@ -102,7 +102,7 @@ class EnvView(APIView):
                 ).first()     #실패한 env인 경우
             if env:
                 env.delete()
-            classes = None
+            class_id = None
             
         try:
             query = data['file'].read().decode('utf-8')
@@ -114,8 +114,8 @@ class EnvView(APIView):
             qsize=getattr(settings, 'ASYNC_QUEUE_SIZE', None),
         )
         q.add(freeze(create_env)(
-            user=user,
-            classes=classes,
+            user=user.id,
+            classes=class_id,
             query=query,
             env_name=data['name'],
         ))
