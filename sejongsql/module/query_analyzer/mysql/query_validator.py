@@ -1,6 +1,7 @@
 """
 SQL Query 검증 모듈
 """
+import json
 from collections import namedtuple
 import MySQLdb as mysql
 from MySQLdb.connections import Connection
@@ -42,7 +43,7 @@ class SELECTQueryValidator:
             raise RuntimeError('"uri" or "cursor" must required.')
         self.not_select = {'DELETE', 'UPDATE', 'INSERT', 'REPLACE'}
 
-    def check_query(self, query: str):
+    def check_query(self, query: str, collect_explain: bool = False):
         """해당 쿼리가 올바른 SELECT 쿼리인지 판별"""
         if not isinstance(query, str):
             raise TypeError('query must be "str".')
@@ -55,17 +56,29 @@ class SELECTQueryValidator:
         try:
             with self.mysql.cursor() as cursor:
                 cursor.execute(f"EXPLAIN {query}")
-                result = cursor.fetchall()
+                explain_table = cursor.fetchall()
+                if collect_explain:
+                    cursor.execute(f"EXPLAIN format=json {query}")
+                    explain_json = cursor.fetchall()[0]['EXPLAIN']
         # 2) 실행오류 발생시 탈락
         except (OperationalError, ProgrammingError) as e:
             return Report(result=False, msg=f'execution_error: {e}')
 
         # 3) Explain select-type에 SELECT외에 하나라도 존재할 경우 탈락
-        select_types = {i.get('select_type') for i in result}
+        select_types = {i.get('select_type') for i in explain_table}
         if select_types & self.not_select:
             return Report(result=False, msg='not_select_query')
 
-        return Report(result=True, msg='success', body=result)
+        return Report(
+            result=True,
+            msg='success',
+            body={
+                'explain': {
+                    'table': explain_table,
+                    'json': json.loads(explain_json)
+                } if collect_explain else None
+            }
+        )
 
     @staticmethod
     def refine_query(query: str):
