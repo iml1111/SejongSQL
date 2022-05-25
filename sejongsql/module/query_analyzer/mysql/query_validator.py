@@ -10,7 +10,7 @@ from module.query_analyzer.uri import URI
 
 
 Report = namedtuple(
-    'Report',
+    'ValidationReport',
     ['result', 'msg', 'body', 'report_type'],
     defaults=(None, None, None, 'query_validator')
 )
