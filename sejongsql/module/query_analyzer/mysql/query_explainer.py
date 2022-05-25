@@ -22,20 +22,15 @@ class QueryExplainer(SELECTQueryValidator):
         explain_json = valid_report.body['explain']['json']
         query_cost = explain_json['query_block']['cost_info']['query_cost']
 
+        # TODO 시간 초과, Time Limit : 쿼리 시간 초과 경고
+
+        # Fulltable scan 여부 검증
+
+
         from pprint import pprint
         pprint(explain_table)
         pprint(explain_json)
-
-    def _get_explain_json(self, query: str):
-        with self.mysql.cursor() as cursor:
-            # TODO 시간 초과, Time Limit : 쿼리 시간 초과 경고
-            cursor.execute(f"EXPLAIN format=json {query}")
-            result = cursor.fetchall()
-        return json.loads(result)
-
-
-
-
+        pprint(query_cost)
 
 
 if __name__ == '__main__':
