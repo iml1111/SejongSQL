@@ -79,6 +79,10 @@ urlpatterns = [
         envs.ConnectEnvView.as_view(),
         name='read_my_env'
     ),
+    path('api/v1/pgroups/<int:pgroup_id>/problems',
+        problems.ProblemsInPgroupView.as_view(),
+        name='read_problems_in_pgroup'
+    ),
     path('api/v1/class/<int:class_id>/pgroups/<int:pgroup_id>/problems',
         problems.ProblemsInPgroupView.as_view(),
         name='create_problems_in_pgroup'

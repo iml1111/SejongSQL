@@ -1,6 +1,6 @@
 from django.utils import timezone
 from rest_framework import serializers
-from .models import User, EnvBelongTable, Warning, ProblemGroup
+from .models import User, EnvBelongTable, Warning, ProblemGroup, UserSolveProblem
 from django.db.models import F, Q
 
 
