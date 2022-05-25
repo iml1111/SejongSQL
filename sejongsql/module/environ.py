@@ -1,7 +1,7 @@
 import os, string
 from random import choice
 from uuid import uuid4
-from app_main.models import Env, EnvBelongClass, EnvBelongTable, Queue
+from app_main.models import Env, EnvBelongClass, EnvBelongTable, Queue, User, Class
 from module.query_analyzer.mysql.query_parser import parse
 from MySQLdb import connect, cursors
 
@@ -24,6 +24,7 @@ def get_db(
 
 
 def create_env(user, query, env_name, classes=None):
+    user = User.objects.get(id=user)
     uuid = str(uuid4()).replace('-','_')
     strings = string.printable[:63]
     env = Env(
@@ -44,6 +45,7 @@ def create_env(user, query, env_name, classes=None):
     queue.save()
 
     if classes:
+        classes = Class.objects.get(id=classes)
         ebc = EnvBelongClass(
             env_id=env,
             class_id=classes,
@@ -79,13 +81,17 @@ def create_env(user, query, env_name, classes=None):
         queue.save()
         return
 
+    parsed_list = []
     # SQL File 파싱 과정
     with open(
         f"{os.environ['SSQL_SQL_PARSED_FILE']}/{env.file_name}",
         'w',
         encoding='utf-8'
     ) as f:
-        for query in result.parsed_list:            
+        for query in result.parsed_list:
+            for table in result.tables:
+                query = query.replace(table, table.lower())
+            parsed_list.append(query)            
             f.write(query + '\n')
 
     db = get_db()
@@ -93,7 +99,7 @@ def create_env(user, query, env_name, classes=None):
     try: # 성공
         cursor.execute(f"CREATE DATABASE {env.db_name};")
         db.select_db(env.db_name)
-        for query in result.parsed_list:
+        for query in parsed_list:
             cursor.execute(query)
         db.commit()
         env.result = 'success'
@@ -118,7 +124,7 @@ def create_env(user, query, env_name, classes=None):
     for name in result.tables:
         tbe = EnvBelongTable(
             env_id=env,
-            table_name=name
+            table_name=name.lower()
         )
         tbe.save()
     
