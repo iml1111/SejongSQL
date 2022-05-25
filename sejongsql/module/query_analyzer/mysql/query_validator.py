@@ -8,7 +8,11 @@ from MySQLdb._exceptions import OperationalError, ProgrammingError
 from module.query_analyzer.uri import URI
 
 
-Report = namedtuple('Report', ['result', 'msg'])
+Report = namedtuple(
+    'Report',
+    ['result', 'msg', 'body', 'report_type'],
+    defaults=(None, None, None, 'query_validator')
+)
 
 
 class SELECTQueryValidator:
@@ -61,7 +65,7 @@ class SELECTQueryValidator:
         if select_types & self.not_select:
             return Report(result=False, msg='not_select_query')
 
-        return Report(result=True, msg='success')
+        return Report(result=True, msg='success', body=result)
 
     @staticmethod
     def refine_query(query: str):
@@ -69,27 +73,5 @@ class SELECTQueryValidator:
 
 
 if __name__ == '__main__':
-    uri = "mysql://root:hkw10256@localhost:3306/world"
-    validator = SELECTQueryValidator(uri=uri)
-    # 이미 connection 객체가 있을 경우,
-    # SELECTQueryValidator(cursor=args) 인자로 직접 전달 가능.
-
-    # 성공 예시
-    correct_query = "select * from city;"
-    report = validator.check_query(query=correct_query)
-    print(report)
-    if report.result is True:
-        print("좋은 쿼리네요 ㅎㅎ")
-
-    # 1) 실패 예시
-    incorrect1_query = "delete from city;"
-    report = validator.check_query(query=incorrect1_query )
-    print(report)
-
-    # 2) 실패 예시
-    incorrect2_query = "select * from 없는테이블;"
-    report = validator.check_query(query=incorrect2_query)
-    print(report)
-
-    # 3) 실패 예시
-    # 재현 불가능 ㅋㅋ...
+    a = Report()
+    print(a)
