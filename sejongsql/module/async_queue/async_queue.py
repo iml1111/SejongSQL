@@ -75,6 +75,7 @@ class AsyncQueue(SingletonInstane):
         logging.info(f"{worker_prefix} Started...")
         while True:
             task = queue.get()
+            django.db.connections.close_all()
             logging.info(f"{worker_prefix} get task...")
             try:
                 task.execute()
