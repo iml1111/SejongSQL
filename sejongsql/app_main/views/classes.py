@@ -382,19 +382,21 @@ class UserSearchView(APIView):
             if not ubc.is_admin:
                 return FORBIDDEN("student can't access.")
 
-        obj = User.objects.filter(sejong_id__startswith=data['sejong_id'])
-        if not obj:
-            return FORBIDDEN("can't find user.")
+        obj = User.objects.filter(sejong_id__startswith=data['sejong_id']).order_by('created_at')
         
         user_srz = SearchUserSrz(obj, many=True).data
         
+        users = obj.values_list('id', flat=True)
+
+        user_exist = UserBelongClass.objects.filter(
+            class_id=data['class_id'],
+            user_id__in=users
+        ).values_list('user_id',flat=True)
+
         for user in user_srz:
-            if UserBelongClass.objects.filter(
-                class_id=data['class_id'],
-                user_id=user['id']
-            ).exists():
+            if user['id'] in user_exist:
                 user['exist'] = True
             else:
                 user['exist'] = False
-        
+
         return OK(user_srz)
