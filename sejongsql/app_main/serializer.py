@@ -30,13 +30,32 @@ class SAClassSrz(serializers.Serializer):
     semester = serializers.CharField(max_length=100)
     comment = serializers.CharField(max_length=1000)
     activate = serializers.BooleanField(default=1)
-    prof = serializers.CharField(max_length=100)
     type = serializers.CharField(max_length=100)
+    prof = serializers.SerializerMethodField()
     pgroup = serializers.SerializerMethodField()
 
     def get_pgroup(self, obj):
         pgroup = obj.problemgroup_set.values('id', 'name').order_by('id')
         return pgroup
+
+
+    def get_prof(self, obj):
+        prof = obj.userbelongclass_set.filter(
+            type='prof'
+        ).annotate(
+            prof_id=F("user_id__id"),
+            sejong_id=F("user_id__sejong_id"),
+            name=F("user_id__name"),
+            major=F("user_id__major")
+        ).values('prof_id', 'sejong_id', 'name', 'major').first()
+
+        result = {
+            'id': prof['prof_id'],
+            'sejong_id': prof['sejong_id'],
+            'name': prof['name'],
+            'major': prof['major']
+        }
+        return result
     
 
 class ClassSrz(serializers.Serializer):
@@ -45,8 +64,8 @@ class ClassSrz(serializers.Serializer):
     semester = serializers.CharField(max_length=100)
     comment = serializers.CharField(max_length=1000)
     activate = serializers.BooleanField(default=1)
-    prof = serializers.SerializerMethodField()
     type = serializers.CharField(max_length=100)
+    prof = serializers.SerializerMethodField()
     pgroup = serializers.SerializerMethodField()
 
 
@@ -72,9 +91,19 @@ class ClassSrz(serializers.Serializer):
         prof = obj.userbelongclass_set.filter(
             type='prof'
         ).annotate(
-            prof_name=F("user_id__name")
-        ).first()
-        return prof.prof_name
+            prof_id=F("user_id__id"),
+            sejong_id=F("user_id__sejong_id"),
+            name=F("user_id__name"),
+            major=F("user_id__major")
+        ).values('prof_id', 'sejong_id', 'name', 'major').first()
+
+        result = {
+            'id': prof['prof_id'],
+            'sejong_id': prof['sejong_id'],
+            'name': prof['name'],
+            'major': prof['major']
+        }
+        return result
 
 
 class ProblemGroupSrz(serializers.Serializer):
