@@ -38,6 +38,7 @@ class ClassView(APIView):
                 ).annotate(
                     prof=F("userbelongclass__user_id__name")
                 ).prefetch_related(
+                    'userbelongclass_set',
                     'problemgroup_set'
                 ).first()
                 if not classes:
@@ -52,6 +53,7 @@ class ClassView(APIView):
                 ).annotate(
                     prof=F("userbelongclass__user_id__name")
                 ).prefetch_related(
+                    'userbelongclass_set',
                     'problemgroup_set'
                 )
                 for obj in classes:
