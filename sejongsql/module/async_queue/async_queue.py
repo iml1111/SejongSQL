@@ -1,13 +1,10 @@
 """멀티프로세싱 관리 큐"""
 import logging
-from typing import Callable
-from functools import wraps
-from collections import deque
+from traceback import format_exc
 from multiprocessing import (
-    Queue, Process, Manager, current_process
+    Queue, Process, current_process
 )
 import django
-import requests
 from module.async_queue.base import SingletonInstane
 from module.async_queue.task import Task
 
@@ -74,16 +71,20 @@ class AsyncQueue(SingletonInstane):
     def _work(queue: Queue):
         django.setup()
         p = current_process()
-        worker_name = f"[{p.name}] Worker"
-        logging.info(f"[WORKER] {worker_name} Started...")
+        worker_prefix = f"[WORKER] ({p.name})"
+        logging.info(f"{worker_prefix} Started...")
         while True:
             task = queue.get()
-            logging.info(f"[WORKER] {worker_name} get task...")
+            django.db.connections.close_all()
+            logging.info(f"{worker_prefix} get task...")
             try:
                 task.execute()
             except Exception as e:
-                raise e
-            logging.info(f"[WORKER]{worker_name} complete task...")
+                error_msg = format_exc()
+                logging.error(f"{worker_prefix} {error_msg}")
+                logging.info(f"{worker_prefix} aborted task...")
+            else:
+                logging.info(f"{worker_prefix} complete task...")
 
 
 def get_async_queue(*args, **kwargs):
