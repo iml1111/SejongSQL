@@ -6,8 +6,8 @@ from module.decorator import login_required, sa_required, get_user
 from module.environ import get_db
 from module.query_analyzer.mysql.query_validator import SELECTQueryValidator
 from app_main.models import ProblemGroup, Problem, Env, Warning, WarningBelongProblem, UserBelongClass, UserSolveProblem
-from app_main.serializer import WarningSrz, ProblemSrz
-from django.db.models import F, Q, Count, Case, When
+from app_main.serializer import WarningSrz, ProblemSrz, ProblemInGroupSrz
+from django.db.models import F, Q, Count
 from django.utils import timezone
 from django_jwt_extended import jwt_required
 
@@ -21,8 +21,6 @@ class ProblemsInPgroupView(APIView):
         특정 문제집의 문제 목록 반환 API
         학생은 활성화 체크
         """
-        from django.db import connection
-        from pprint import pprint
 
         user = get_user(request)
         validator = Validator(
@@ -43,54 +41,55 @@ class ProblemsInPgroupView(APIView):
                 return FORBIDDEN("can't find class.")
                 
         if user.is_sa or check_user.is_admin:   #관리자
-            pprint(connection.queries)
-            print("#"*100)
-
             problem = Problem.objects.filter(
                 pg_id=data['pgroup_id']
-            ).prefetch_related(
-                'usersolveproblem_set__warningbelongup_set'
             ).annotate(
                 problem_warnings=Count('warningbelongproblem'),
             )
-            
-            usp = UserSolveProblem.objects.filter(
-                p_id__in=problem.values_list('id'),
-                user_id=user.id
-            ).prefetch_related(
-                'warningbelongup_set'
-            )
-
-            for p in problem:
-                usp = p.usersolveproblem_set.filter(
-                    p_id=p.id,
-                    user_id=user.id,
-                ).annotate(
-                    user_warnings=Count('warningbelongup')
-                ).order_by('-accuracy', '-created_at')
-            
-                accuracy = usp[0].accuracy
-                p.status = 'Correct' if accuracy==1 else 'Wrong Answer' if accuracy else 'No Submit'
-
-            pprint(connection.queries)
-            print("#"*100)
-
-            return OK()
         else:   #학생
             problem = Problem.objects.filter(
-                Q(id=data['problem_id']),
+                Q(pg_id=data['pgroup_id']),
                 Q(pg_id__class_id__activate=1),
                 (
                     (Q(pg_id__activate_start=None) | Q(pg_id__activate_start__lt=timezone.now())) &
                     (Q(pg_id__activate_end=None) | Q(pg_id__activate_end__gt=timezone.now()))
-                )
-            ).first()   #분반 활성화, 문제집 활성화 체크
-        if not problem:
-            return FORBIDDEN("can't find problem.")
+                )   #분반 활성화, 문제집 활성화 체크
+            ).annotate(
+                problem_warnings=Count('warningbelongproblem'),
+            )
+        p_id = list(problem.values_list('id',flat=True))
 
+        usp = UserSolveProblem.objects.filter(
+            p_id__in=p_id,
+            user_id=user.id,
+            submit=True,
+        ).annotate(
+            user_warnings=Count('warningbelongup'),
+            problem_id=F('p_id__id')
+        ).values(
+            'id',
+            'problem_id',
+            'accuracy',
+            'created_at',
+            'user_warnings'
+        ).order_by('p_id__id', '-accuracy', '-created_at')
 
+        for obj in usp:
+            if obj['problem_id'] in p_id:
+                for p in problem:
+                    if p.id == obj['problem_id']:
+                        p.user_warnings = obj['user_warnings']
+                        p.status = 'Correct' if obj['accuracy'] else 'Wrong Answer'
+                p_id.pop(0)
 
+        for p in problem:   #No Submit
+            if p.id in p_id:
+                p.status = 'No Submit'
+                p.user_warnings = 0
 
+        problem_srz = ProblemInGroupSrz(problem, many=True)
+        return OK(problem_srz.data)
+    
 
     @jwt_required()
     @login_required()
