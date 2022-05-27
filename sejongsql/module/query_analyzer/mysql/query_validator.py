@@ -9,10 +9,10 @@ from MySQLdb._exceptions import OperationalError, ProgrammingError
 from module.query_analyzer.uri import URI
 
 
-Report = namedtuple(
+ValidationReport = namedtuple(
     'ValidationReport',
     ['result', 'msg', 'body', 'report_type'],
-    defaults=(None, None, None, 'query_validator')
+    defaults=(None, None, None, 'validation_report')
 )
 
 
@@ -61,7 +61,7 @@ class SELECTQueryValidator:
 
         # 1) SELECT로 시작하지 않을 경우 탈락
         if not query.startswith('select'):
-            return Report(result=False, msg='not_startswith_select')
+            return ValidationReport(result=False, msg='not_startswith_select')
 
         try:
             with self.mysql.cursor() as cursor:
@@ -72,14 +72,14 @@ class SELECTQueryValidator:
                     explain_json = cursor.fetchall()[0]['EXPLAIN']
         # 2) 실행오류 발생시 탈락
         except (OperationalError, ProgrammingError) as e:
-            return Report(result=False, msg=f'execution_error: {e}')
+            return ValidationReport(result=False, msg=f'execution_error: {e}')
 
         # 3) Explain select-type에 SELECT외에 하나라도 존재할 경우 탈락
         select_types = {i.get('select_type') for i in explain_table}
         if select_types & self.not_select:
-            return Report(result=False, msg='not_select_query')
+            return ValidationReport(result=False, msg='not_select_query')
 
-        return Report(
+        return ValidationReport(
             result=True,
             msg='success',
             body={
@@ -96,5 +96,4 @@ class SELECTQueryValidator:
 
 
 if __name__ == '__main__':
-    a = Report()
-    print(a)
+    pass
