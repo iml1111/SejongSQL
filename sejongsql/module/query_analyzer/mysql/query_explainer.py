@@ -40,9 +40,6 @@ class QueryExplainer(SELECTQueryValidator):
         if self._uncacheable(explain):
             warning_list.append(UNCACHEABLE)
 
-        # TODO Range checked for each record
-        # TODO Using join buffer
-
         return ExplainReport(
             report_type='explain_report',
             expected_rows=sum([i['rows'] for i in explain['table']]),
@@ -66,7 +63,7 @@ class QueryExplainer(SELECTQueryValidator):
         full_scan_types = ('all', 'index')
         for record in records:
             full_scan_type = record['type'].lower() in full_scan_types
-            extra = record['Extra'] if record.get('Extra') else ""
+            extra = record['Extra'].lower() if record.get('Extra') else ""
             if full_scan_type and 'using where' in extra:
                 return True
         return False
@@ -79,12 +76,12 @@ class QueryExplainer(SELECTQueryValidator):
         - 모든 파티션 테이블의 type에 eq_ref, ref가 존재하지 않으며,
         - 모든 파티션 테이블의 ref가 null인가?
         """
-        types = set(self._get_types(explain))
-        refs = set(self._get_refs(explain))
+        types = set(self._get_elements(explain, 'type'))
+        refs = set(self._get_elements(explain, 'ref'))
 
-        join_not_in_query = 'join' in query
+        join_not_in_query = 'join' not in query
         no_type_ref = not ({'eq_ref', 'ref'} & types)
-        ref_all_null = len(refs) == 1 and None in refs
+        ref_all_null = not refs
         return (
             join_not_in_query
             and no_type_ref
@@ -96,7 +93,7 @@ class QueryExplainer(SELECTQueryValidator):
         # 해당 쿼리는 filesort가 사용되었다.
         - extra 내부에서 filesort 문자열이 하나라도 있는가?
         """
-        extras = self._get_extras(explain)
+        extras = self._get_elements(explain, 'Extra')
         return any(['filesort' in i for i in extras])
 
     def _impossible_condition(self, explain: dict):
@@ -104,55 +101,39 @@ class QueryExplainer(SELECTQueryValidator):
         # 테이블 구조상 해당 Where/having 구문은 반드시 False인 경우
         - extra 내부에 impossible where가 하나라도 있는가?
         """
-        extras = self._get_extras(explain)
+        extras = self._get_elements(explain, 'Extra')
         return any(['impossible' in i for i in extras])
 
     def _uncacheable(self, explain: dict):
-        types = self._get_select_types(explain)
+        types = self._get_elements(explain, 'select_type')
         return any(['uncacheable' in i for i in types])
 
     @staticmethod
-    def _get_types(explain):
-        types = [i['type'] for i in explain['table']]
-        types = list(filter(
-            lambda x: x.lower().strip() if x else x, types))
-        return types
-
-    @staticmethod
-    def _get_refs(explain):
-        refs = [i['ref'] for i in explain['table']]
-        refs = list(filter(
-            lambda x: x.lower().strip() if x else x, refs))
-        return refs
-
-    @staticmethod
-    def _get_extras(explain):
-        extras = [i['Extra'] for i in explain['table']]
-        extras = list(filter(
-            lambda x: x.lower().strip() if x else "", extras))
-        return extras
-
-    @staticmethod
-    def _get_select_types(explain):
-        types = [i['select_type'] for i in explain['table']]
-        types = list(filter(
-            lambda x: x.lower().strip() if x else "", types))
-        return types
+    def _get_elements(explain: dict, type: str):
+        result = [i[type] for i in explain['table']]
+        result = list(filter(lambda x: x, result))
+        result = list(map(lambda x: x.lower(), result))
+        return result
 
     @staticmethod
     def _query_normalize(query: str):
-        return query.lower()
-
+        return query.lower().strip().replace('\n', ' ')
 
 
 if __name__ == '__main__':
     import os
     from dotenv import load_dotenv
+    from pprint import pprint
 
     load_dotenv(verbose=True)
-
-    uri = os.getenv('SSQL_DB_URI') + 'sejongsql_36261c7a_f703_489c_a581_7aa963e986dd'
+    uri = os.getenv('SSQL_DB_URI')
 
     a = QueryExplainer(uri=uri)
-    res = a.explain_query('SELECT * FROM test')
-    print(res)
+    res = a.explain_query(
+        """
+        select * from sejongsql_11013c1a_853b_4b37_9160_a52ec81129e1.buytbl b 
+        where price = 30
+        order by prodName
+        """
+    )
+    pprint(res._asdict())
