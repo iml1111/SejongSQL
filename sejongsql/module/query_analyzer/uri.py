@@ -38,7 +38,6 @@ class URI:
                 self.scheme,
                 self.hostname, self.port,
                 self.username, self.password,
-                self.dbname,
             )
         )
 

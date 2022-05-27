@@ -1,6 +1,7 @@
 """
 SQL Query 검증 모듈
 """
+import json
 from collections import namedtuple
 import MySQLdb as mysql
 from MySQLdb.connections import Connection
@@ -8,7 +9,11 @@ from MySQLdb._exceptions import OperationalError, ProgrammingError
 from module.query_analyzer.uri import URI
 
 
-Report = namedtuple('Report', ['result', 'msg'])
+ValidationReport = namedtuple(
+    'ValidationReport',
+    ['result', 'msg', 'body', 'report_type'],
+    defaults=(None, None, None, 'validation_report')
+)
 
 
 class SELECTQueryValidator:
@@ -25,20 +30,30 @@ class SELECTQueryValidator:
             uri = URI(uri)
             if not uri.is_valid:
                 raise RuntimeError('"uri" is incorrect scheme.')
-            self.mysql = mysql.connect(
-                host=uri.hostname,
-                port=uri.port,
-                user=uri.username,
-                passwd=uri.password,
-                db=uri.dbname,
-                charset='utf8',
-                cursorclass=mysql.cursors.DictCursor
-            )
+            if uri.dbname is None:
+                self.mysql = mysql.connect(
+                    host=uri.hostname,
+                    port=uri.port,
+                    user=uri.username,
+                    passwd=uri.password,
+                    charset='utf8',
+                    cursorclass=mysql.cursors.DictCursor
+                )
+            else:
+                self.mysql = mysql.connect(
+                    host=uri.hostname,
+                    port=uri.port,
+                    user=uri.username,
+                    passwd=uri.password,
+                    db=uri.dbname,
+                    charset='utf8',
+                    cursorclass=mysql.cursors.DictCursor
+                )
         else:
             raise RuntimeError('"uri" or "cursor" must required.')
         self.not_select = {'DELETE', 'UPDATE', 'INSERT', 'REPLACE'}
 
-    def check_query(self, query: str):
+    def check_query(self, query: str, collect_explain: bool = False):
         """해당 쿼리가 올바른 SELECT 쿼리인지 판별"""
         if not isinstance(query, str):
             raise TypeError('query must be "str".')
@@ -46,22 +61,34 @@ class SELECTQueryValidator:
 
         # 1) SELECT로 시작하지 않을 경우 탈락
         if not query.startswith('select'):
-            return Report(result=False, msg='not_startswith_select')
+            return ValidationReport(result=False, msg='not_startswith_select')
 
         try:
             with self.mysql.cursor() as cursor:
                 cursor.execute(f"EXPLAIN {query}")
-                result = cursor.fetchall()
+                explain_table = cursor.fetchall()
+                if collect_explain:
+                    cursor.execute(f"EXPLAIN format=json {query}")
+                    explain_json = cursor.fetchall()[0]['EXPLAIN']
         # 2) 실행오류 발생시 탈락
         except (OperationalError, ProgrammingError) as e:
-            return Report(result=False, msg=f'execution_error: {e}')
+            return ValidationReport(result=False, msg=f'execution_error: {e}')
 
         # 3) Explain select-type에 SELECT외에 하나라도 존재할 경우 탈락
-        select_types = {i.get('select_type') for i in result}
+        select_types = {i.get('select_type') for i in explain_table}
         if select_types & self.not_select:
-            return Report(result=False, msg='not_select_query')
+            return ValidationReport(result=False, msg='not_select_query')
 
-        return Report(result=True, msg='success')
+        return ValidationReport(
+            result=True,
+            msg='success',
+            body={
+                'explain': {
+                    'table': explain_table,
+                    'json': json.loads(explain_json)
+                } if collect_explain else None
+            }
+        )
 
     @staticmethod
     def refine_query(query: str):
@@ -69,27 +96,4 @@ class SELECTQueryValidator:
 
 
 if __name__ == '__main__':
-    uri = "mysql://root:hkw10256@localhost:3306/world"
-    validator = SELECTQueryValidator(uri=uri)
-    # 이미 connection 객체가 있을 경우,
-    # SELECTQueryValidator(cursor=args) 인자로 직접 전달 가능.
-
-    # 성공 예시
-    correct_query = "select * from city;"
-    report = validator.check_query(query=correct_query)
-    print(report)
-    if report.result is True:
-        print("좋은 쿼리네요 ㅎㅎ")
-
-    # 1) 실패 예시
-    incorrect1_query = "delete from city;"
-    report = validator.check_query(query=incorrect1_query )
-    print(report)
-
-    # 2) 실패 예시
-    incorrect2_query = "select * from 없는테이블;"
-    report = validator.check_query(query=incorrect2_query)
-    print(report)
-
-    # 3) 실패 예시
-    # 재현 불가능 ㅋㅋ...
+    pass
