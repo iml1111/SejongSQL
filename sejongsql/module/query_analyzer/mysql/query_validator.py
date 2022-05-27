@@ -30,15 +30,25 @@ class SELECTQueryValidator:
             uri = URI(uri)
             if not uri.is_valid:
                 raise RuntimeError('"uri" is incorrect scheme.')
-            self.mysql = mysql.connect(
-                host=uri.hostname,
-                port=uri.port,
-                user=uri.username,
-                passwd=uri.password,
-                db=uri.dbname,
-                charset='utf8',
-                cursorclass=mysql.cursors.DictCursor
-            )
+            if uri.dbname is None:
+                self.mysql = mysql.connect(
+                    host=uri.hostname,
+                    port=uri.port,
+                    user=uri.username,
+                    passwd=uri.password,
+                    charset='utf8',
+                    cursorclass=mysql.cursors.DictCursor
+                )
+            else:
+                self.mysql = mysql.connect(
+                    host=uri.hostname,
+                    port=uri.port,
+                    user=uri.username,
+                    passwd=uri.password,
+                    db=uri.dbname,
+                    charset='utf8',
+                    cursorclass=mysql.cursors.DictCursor
+                )
         else:
             raise RuntimeError('"uri" or "cursor" must required.')
         self.not_select = {'DELETE', 'UPDATE', 'INSERT', 'REPLACE'}
