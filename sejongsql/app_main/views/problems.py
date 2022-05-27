@@ -5,6 +5,7 @@ from module.validator import Validator, Json, Path
 from module.decorator import login_required, sa_required, get_user
 from module.environ import get_db
 from module.query_analyzer.mysql.query_validator import SELECTQueryValidator
+from module.query_analyzer.mysql.query_explainer import QueryExplainer
 from app_main.models import ProblemGroup, Problem, Env, Warning, WarningBelongProblem, UserBelongClass, UserSolveProblem
 from app_main.serializer import WarningSrz, ProblemSrz, ProblemInGroupSrz
 from django.db.models import F, Q, Count
@@ -374,14 +375,7 @@ class ProblemRunView(APIView):
         if not data['query']:
             return BAD_REQUEST("query does not exist.")
 
-        queries = data['query'].split(';')
-        for i in range(len(queries)-1): #세미콜론을 판단하기 위한 작업
-            queries[i] += ';'
-
-        query = queries[0]
-        no_semicolon = False
-        if not query.rstrip().endswith(';'):
-            no_semicolon = True
+        query = data['query']
 
         if not problem.env_id:
             return FORBIDDEN("can't find env.")
@@ -423,12 +417,6 @@ class ProblemRunView(APIView):
         )
         usp.save()
 
-        if no_semicolon:
-            return OK({
-                'status': True,
-                'query_result': "query must be end with semicolon."
-            })
-        
         return OK({
             'status': status,
             'query_result': query_result
@@ -463,7 +451,7 @@ class ProblemSubmitView(APIView):
             ).first()
             if not check_user:
                 return FORBIDDEN("can't find class.")
-        
+
         if user.is_sa or check_user.is_admin:   #관리자
             problem = Problem.objects.filter(
                 id=data['problem_id']
@@ -483,14 +471,7 @@ class ProblemSubmitView(APIView):
         if not data['query']:
             return BAD_REQUEST("query does not exist.")
 
-        queries = data['query'].split(';')
-        for i in range(len(queries)-1): #세미콜론을 판단하기 위한 작업
-            queries[i] += ';'
-
-        query = queries[0]
-        no_semicolon = False
-        if not query.rstrip().endswith(';'):
-            no_semicolon = True
+        query = data['query']
 
         if not problem.env_id:
             return FORBIDDEN("can't find env.")
@@ -502,46 +483,8 @@ class ProblemSubmitView(APIView):
         cursor = db.cursor()
         db.select_db(problem.env_id.db_name)
 
-        validator = SELECTQueryValidator(
-            uri="mysql://" + str(problem.env_id.account_name) + ":" +
-                str(problem.env_id.account_pw) + "@" +
-                os.environ['SSQL_ORIGIN_MYSQL_HOST'] + ":" +
-                os.environ['SSQL_ORIGIN_MYSQL_PORT'] + "/" +
-                str(problem.env_id.db_name)
-        )
-        validator_result = validator.check_query(query=query)
 
-        status = True
-        if validator_result.result:
-            try:
-                cursor.execute(query)
-                query_result = cursor.fetchall()
-            except Exception as error:
-                status = False
-                query_result = str(error)
-        else:
-            status = False
-            query_result = validator_result.msg
-            query_result = query_result.replace(f"{problem.env_id.db_name}.", "")
-            query_result = query_result.replace(problem.env_id.db_name, "")
 
-        usp = UserSolveProblem(
-            p_id=problem,
-            user_id=user,
-            query=query
-        )
-        usp.save()
-
-        if no_semicolon:
-            return OK({
-                'status': True,
-                'query_result': "query must be end with semicolon."
-            })
-        
-        return OK({
-            'status': status,
-            'query_result': query_result
-        })
 
 
 class WarningView(APIView):
