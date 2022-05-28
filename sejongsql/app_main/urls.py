@@ -55,6 +55,10 @@ urlpatterns = [
         pgroup.PgroupView.as_view(),
         name='read_update_delete_pgroup'
     ),
+    path('api/v1/pgroups/<int:pgroup_id>',
+        pgroup.CertainPgroupView.as_view(),
+        name='read_certain_pgroup'
+    ),
     path('api/v1/class/<int:class_id>/envs',
         envs.EnvView.as_view(),
         name='read_env_from_class'
