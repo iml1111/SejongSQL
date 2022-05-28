@@ -2,8 +2,8 @@ from rest_framework.views import APIView
 from module.response import OK, NO_CONTENT, BAD_REQUEST, FORBIDDEN, CREATED
 from module.validator import Validator, Json, Path
 from module.decorator import login_required, get_user
-from app_main.models import Class, ProblemGroup, Problem, UserSolveProblem
-from app_main.serializer import ProblemGroupSrz
+from app_main.models import Class, ProblemGroup, Problem, UserBelongClass
+from app_main.serializer import ProblemGroupSrz, CertainPgroupSrz
 from django.utils import timezone
 from datetime import datetime
 from django.db.models import Q, F, Count, Case, When
@@ -222,13 +222,21 @@ class PgroupView(APIView):
             return FORBIDDEN("can't find time. (exam on, activate on)")
 
         if not data['activate']:
-            data['activate_start'] = datetime(1997,12,8,0,0,0)
-            data['activate_end'] = datetime(1997,12,8,0,0,0)
+            data['activate_start'] = str(datetime(1997,12,8,0,0,0))
+            data['activate_end'] = str(datetime(1997,12,8,0,0,0))
+
+        try:
+            if data['activate_start']:
+                datetime.strptime(data['activate_start'],"%Y-%m-%d %H:%M:%S")
+            if data['activate_end']:
+                datetime.strptime(data['activate_end'],"%Y-%m-%d %H:%M:%S")
+        except: 
+            return BAD_REQUEST("Incorrect date format.")
 
         pgroup.name = data['name'] or pgroup.name
         pgroup.comment = data['comment'] or pgroup.comment
         pgroup.exam = data['exam']
-        pgroup.activate_start = data['activate_start'] or None
+        pgroup.activate_start = data['activate_start'] or None  #활성화인데 시간이 안 올 경우 Null
         pgroup.activate_end = data['activate_end'] or None
         pgroup.save()
 
@@ -271,3 +279,56 @@ class PgroupView(APIView):
         pgroup.delete()
 
         return NO_CONTENT
+
+
+class CertainPgroupView(APIView):
+
+    @jwt_required()
+    @login_required()
+    def get(self, request, **path):
+        """
+        특정 문제집 반환 API
+        SA, 교수, 조교만 호출 가능
+        """
+
+        user = get_user(request)
+        validator = Validator(
+            request, path, params=[
+                Path('pgroup_id', int),
+            ])
+
+        if not validator.is_valid:
+            return BAD_REQUEST(validator.error_msg)
+        data = validator.data
+
+        if not user.is_sa:
+            check_user = UserBelongClass.objects.filter(
+                user_id=user.id,
+                class_id__problemgroup=data['pgroup_id'],
+            ).first()
+            if not check_user:
+                return FORBIDDEN("can't find class.")
+        
+        if not user.is_sa and not check_user.is_admin:    #학생
+            return FORBIDDEN("student can't access.")
+
+        pgroup = ProblemGroup.objects.filter(
+            id=data['pgroup_id']
+        ).first()
+        if not pgroup:
+            return FORBIDDEN("can't find pgroup.")
+
+        pgroup.activate = False
+        if (
+            ((pgroup.activate_start == None) or (pgroup.activate_start < timezone.now())) and
+            ((pgroup.activate_end == None) or (pgroup.activate_end > timezone.now()))
+        ):
+            pgroup.activate = True
+        
+        if pgroup.activate_start == datetime(1997,12,8,0,0,0):
+            pgroup.activate_start = None
+        if pgroup.activate_end == datetime(1997,12,8,0,0,0):
+            pgroup.activate_end = None
+
+        pgroup_srz = CertainPgroupSrz(pgroup)
+        return OK(pgroup_srz.data)

@@ -1,6 +1,6 @@
 from django.utils import timezone
 from rest_framework import serializers
-from .models import User, EnvBelongTable, Warning
+from .models import User, EnvBelongTable, Warning, ProblemGroup
 from django.db.models import F, Q
 
 
@@ -115,6 +115,13 @@ class ProblemGroupSrz(serializers.Serializer):
     activate = serializers.BooleanField()
     activate_start = serializers.DateTimeField()
     activate_end = serializers.DateTimeField()
+
+
+class CertainPgroupSrz(serializers.ModelSerializer):
+    activate = serializers.BooleanField()
+    class Meta:
+        model = ProblemGroup
+        fields = ('id', 'name', 'comment', 'exam', 'activate', 'activate_start', 'activate_end')
 
 
 class ClassEnvSrz(serializers.Serializer):
