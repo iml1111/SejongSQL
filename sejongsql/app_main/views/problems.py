@@ -1,4 +1,6 @@
 import os
+from time import time
+from collections import defaultdict
 from rest_framework.views import APIView
 from module.response import OK, NO_CONTENT, BAD_REQUEST, FORBIDDEN, CREATED
 from module.validator import Validator, Json, Path
@@ -6,7 +8,11 @@ from module.decorator import login_required, sa_required, get_user
 from module.environ import get_db
 from module.query_analyzer.mysql.query_validator import SELECTQueryValidator
 from module.query_analyzer.mysql.query_explainer import QueryExplainer
-from app_main.models import ProblemGroup, Problem, Env, Warning, WarningBelongProblem, UserBelongClass, UserSolveProblem
+from app_main.models import (
+    ProblemGroup, Problem, Env, 
+    Warning, WarningBelongProblem, UserBelongClass, 
+    UserSolveProblem, WarningBelongUp
+)
 from app_main.serializer import WarningSrz, ProblemSrz, ProblemInGroupSrz
 from django.db.models import F, Q, Count
 from django.utils import timezone
@@ -81,7 +87,8 @@ class ProblemsInPgroupView(APIView):
                     if p.id == obj['problem_id']:
                         p.user_warnings = obj['user_warnings']
                         p.status = 'Correct' if obj['accuracy'] else 'Wrong Answer'
-                p_id.pop(0)
+                        p_id.pop(0)
+                        break
 
         for p in problem:   #No Submit
             if p.id in p_id:
@@ -185,6 +192,7 @@ class ProblemView(APIView):
                 user_id=user.id,
                 class_id__problemgroup__problem=data['problem_id'],
             ).first()
+
             if not check_user:
                 return FORBIDDEN("can't find class.")
         
@@ -359,7 +367,7 @@ class ProblemRunView(APIView):
         if user.is_sa or check_user.is_admin:   #관리자
             problem = Problem.objects.filter(
                 id=data['problem_id']
-            ).first()
+            ).select_related('env_id').first()
         else:   #학생
             problem = Problem.objects.filter(
                 Q(id=data['problem_id']),
@@ -368,14 +376,13 @@ class ProblemRunView(APIView):
                     (Q(pg_id__activate_start=None) | Q(pg_id__activate_start__lt=timezone.now())) &
                     (Q(pg_id__activate_end=None) | Q(pg_id__activate_end__gt=timezone.now()))
                 )
-            ).first()   #분반 활성화, 문제집 활성화 체크
+            ).select_related('env_id').first()   #분반 활성화, 문제집 활성화 체크
         if not problem:
             return FORBIDDEN("can't find problem.")
         
         if not data['query']:
             return BAD_REQUEST("query does not exist.")
-
-        query = data['query']
+        query = data['query'].lower()
 
         if not problem.env_id:
             return FORBIDDEN("can't find env.")
@@ -433,6 +440,9 @@ class ProblemSubmitView(APIView):
         학생은 활성화 체크
         """
 
+        from django.db import connection
+        from pprint import pprint
+
         user = get_user(request)
         validator = Validator(
             request, path, params=[
@@ -455,7 +465,9 @@ class ProblemSubmitView(APIView):
         if user.is_sa or check_user.is_admin:   #관리자
             problem = Problem.objects.filter(
                 id=data['problem_id']
-            ).first()
+            ).prefetch_related(
+                'warningbelongproblem_set'
+            ).select_related('env_id').first()
         else:   #학생
             problem = Problem.objects.filter(
                 Q(id=data['problem_id']),
@@ -464,18 +476,25 @@ class ProblemSubmitView(APIView):
                     (Q(pg_id__activate_start=None) | Q(pg_id__activate_start__lt=timezone.now())) &
                     (Q(pg_id__activate_end=None) | Q(pg_id__activate_end__gt=timezone.now()))
                 )
-            ).first()   #분반 활성화, 문제집 활성화 체크
+            ).prefetch_related(
+                'warningbelongproblem_set'
+            ).select_related('env_id').first()   #분반 활성화, 문제집 활성화 체크
+
         if not problem:
             return FORBIDDEN("can't find problem.")
         
         if not data['query']:
             return BAD_REQUEST("query does not exist.")
-
-        query = data['query']
+        query = data['query'].lower()
 
         if not problem.env_id:
             return FORBIDDEN("can't find env.")
 
+        warnings = problem.warningbelongproblem_set.values_list(
+            'warning_id__id',
+            flat=True
+        )
+        
         db = get_db(
             user=problem.env_id.account_name,
             passwd=problem.env_id.account_pw
@@ -483,8 +502,102 @@ class ProblemSubmitView(APIView):
         cursor = db.cursor()
         db.select_db(problem.env_id.db_name)
 
+        explain = QueryExplainer(
+            uri="mysql://" + str(problem.env_id.account_name) + ":" +
+                str(problem.env_id.account_pw) + "@" +
+                os.environ['SSQL_ORIGIN_MYSQL_HOST'] + ":" +
+                os.environ['SSQL_ORIGIN_MYSQL_PORT'] + "/" +
+                str(problem.env_id.db_name)
+        )
+        res = explain.explain_query(query)
 
+        if res.report_type == 'validation_report':  #올바르지 않은 쿼리
+            """
+            usp = UserSolveProblem(
+                p_id=problem,
+                user_id=user,
+                query=query,
+                accuracy=False,
+                submit=True,
+            )
+            usp.save()  #실행이 불가능한 쿼리는 warning도 걸리지 않음.
 
+            return OK({
+                status: False,
+                accuracy: False,
+                warnings: [],
+            })
+            """
+            print(res.msg)
+        else:
+            
+            answer = problem.answer.lower().replace('\n', '').replace(' ','')
+            tic = time()
+            cursor.execute(query)
+            toc = time()
+            query_result = cursor.fetchall()
+
+            cursor.execute(problem.answer.lower())
+            answer_result = cursor.fetchall()
+
+            if 'orderby' in answer: #정답에서 order by를 요구할 때
+                accuracy = True if query_result == answer_result else False 
+            else:
+                #해시화해서 비교
+                hash_dict = defaultdict(dict)
+                p_answer = set()
+                for id, result in enumerate(answer_result):
+                    hash_dict[f"HASH{id}"] = result
+                    p_answer.add(f"HASH{id}")
+
+                u_answer = set()
+                for result in query_result:
+                    for key, value in hash_dict.items():
+                        if value == result:
+                            u_answer.add(key)
+                            break
+
+                accuracy = True if u_answer == p_answer else False                    
+
+                    
+            checked_warnings = [warning.code for warning in res.warnings]
+            user_warnings = Warning.objects.filter(
+                id__in=warnings,    #문제에 걸린 warning 중에서
+                name__in=checked_warnings   #user가 걸린 warning 반환
+            )
+
+            """
+            usp = UserSolveProblem(
+                p_id=problem,
+                user_id=user,
+                query=query,
+                accuracy=False,
+                submit=True,
+            )
+            usp.save()
+
+            for warning in user_warnings:
+                wbp = WarningBelongUp(
+                    up_id=usp,
+                    warning_id=warning
+                )
+                wbp.save()
+            """
+
+            result = {
+                'status': True,
+                'accuracy': accuracy,
+                'warnings': WarningSrz(user_warnings, many=True).data
+            }
+            return OK(result)
+            
+            """
+            except Exception as error:
+                status = False
+                query_result = str(error)
+            """
+
+        return OK()
 
 
 class WarningView(APIView):
