@@ -1,6 +1,6 @@
 from rest_framework.views import APIView
 from module.response import OK, NO_CONTENT, BAD_REQUEST, FORBIDDEN, CREATED
-from module.validator import Validator, Json, Path
+from module.validator import Validator, Json, Path, Query
 from module.decorator import login_required, sa_required, get_user
 from django_jwt_extended import jwt_required
 from app_main.models import User, Class, UserBelongClass
@@ -370,7 +370,7 @@ class UserSearchView(APIView):
         validator = Validator(
             request, path, params=[
                 Path('class_id', int),
-                Path('sejong_id', str),
+                Query('sejong_id', str, optional=True),
             ])
 
         if not validator.is_valid:
@@ -384,7 +384,16 @@ class UserSearchView(APIView):
             if not ubc.is_admin:
                 return FORBIDDEN("student can't access.")
 
-        obj = User.objects.filter(sejong_id__startswith=data['sejong_id']).order_by('created_at')
+        if not data['sejong_id']:
+            obj = User.objects.filter(
+                sejong_id__isnull=False,
+                role='general'
+            ).order_by('created_at')
+        else:
+            obj = User.objects.filter(
+                sejong_id__startswith=data['sejong_id'],
+                role='general'
+                ).order_by('created_at')
         
         user_srz = SearchUserSrz(obj, many=True).data
         

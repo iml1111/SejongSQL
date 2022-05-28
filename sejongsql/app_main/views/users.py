@@ -1,6 +1,6 @@
 from rest_framework.views import APIView
 from module.response import OK, UNAUTHORIZED, NO_CONTENT, BAD_REQUEST, FORBIDDEN, CONFLICT, CREATED
-from module.validator import Validator, Json, Path
+from module.validator import Validator, Json, Path, Query
 from module.rules import MaxLen, MinLen
 from module.decorator import login_required, get_user, sa_required
 from app_main.models import User
@@ -208,7 +208,7 @@ class AllUserView(APIView):
         user = get_user(request)
         validator = Validator(
             request, path, params=[
-                Path('user_name', str),
+                Query('user_name', str, optional=True),
             ])
 
         if not validator.is_valid:
@@ -217,8 +217,14 @@ class AllUserView(APIView):
         
         if not user.is_sa:
             return FORBIDDEN("Only SA can access.")
-
-        obj = User.objects.filter(name__startswith=data['user_name'])
+            
+        if not data['user_name']:
+            obj = User.objects.exclude(role='sa')
+        else:
+            obj = User.objects.filter(
+                name__startswith=data['user_name'],
+                role='general'
+                )
 
         user_srz = SearchUserSrz(obj, many=True)
         return OK(user_srz.data)
