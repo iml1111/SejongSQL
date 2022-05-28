@@ -19,7 +19,7 @@ urlpatterns = [
     path('api/auth/signin', users.SigninView.as_view(), name='signin'),
     path('api/v1/users/me', users.UserView.as_view(), name='read_update_delete_me'),
     path(
-        'api/v1/users/<str:user_name>',
+        'api/v1/users/search',
         users.AllUserView.as_view(),
         name='search_all_user'
     ),
@@ -33,6 +33,11 @@ urlpatterns = [
         name='read_update_delete_class'
     ),
     path(
+        'api/v1/class/<int:class_id>/users/search',
+        classes.UserSearchView.as_view(),
+        name='search_all_user_in_class'
+    ),
+    path(
         'api/v1/class/<int:class_id>/users',
         classes.ClassUserView.as_view(),
         name='read_class_user'
@@ -41,11 +46,6 @@ urlpatterns = [
         'api/v1/class/<int:class_id>/users/<str:user_id>',
         classes.ClassUserView.as_view(),
         name='create_update_delete_class_user'
-    ),
-    path(
-        'api/v1/class/<int:class_id>/user/<str:sejong_id>',
-        classes.UserSearchView.as_view(),
-        name='read_all_user'
     ),
     path('api/v1/class/<int:class_id>/pgroups',
         pgroup.PgroupView.as_view(),
