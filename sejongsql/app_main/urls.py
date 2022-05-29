@@ -103,6 +103,14 @@ urlpatterns = [
         problems.ProblemSubmitView.as_view(),
         name='submit_problem'
     ),
+    path('api/v1/users/me/problems',
+        problems.MyProblemView.as_view(),
+        name='read_my_all_problem'
+    ),
+    path('api/v1/problems/<int:usp_id>/me',
+        problems.UserSolveProblemView.as_view(),
+        name='read_my_certain_problem'
+    ),
     path('api/v1/warnings', problems.WarningView.as_view(), name='create_warning'),
     path('api/v1/warnings', problems.WarningView.as_view(), name='create_warning')
 ]
