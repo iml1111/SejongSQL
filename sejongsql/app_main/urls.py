@@ -128,10 +128,6 @@ urlpatterns = [
         status.StatusView.as_view(),
         name='get_status'
     ),
-    path('api/v1/status/problem/<int:usp_id>',
-        status.StatusProblemView.as_view(),
-        name='get_problem_in_status'
-    ),
     path('api/v1/warnings', problems.WarningView.as_view(), name='create_warning'),
     path('api/v1/warnings', problems.WarningView.as_view(), name='create_warning')
 ]
