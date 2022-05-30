@@ -1,6 +1,9 @@
 '''traverse module'''
 from sqlparse.tokens import Token
 
+TRAVERSE_RECURSION_LIMIT = 20  # 재귀 최대 깊이 제한
+TOO_MANY_RECURSION_DEPTH = 'Too many recursion count'
+
 def is_unsafe_identifier(identifier: str):
     return identifier.upper() in [
         'INFORMATION_SCHEMA',
@@ -14,10 +17,18 @@ def is_unsafe_identifier(identifier: str):
 def traverse(
     statement,
     prev_token = None,  # FIXME: 1.0.0 개발까지 사용하지 않으면 삭제
-    detect_logs = None
+    detect_logs = None,
+    depth = 0  # 재귀 최대 깊이 제한 목적
 ) -> list[str]:
     if detect_logs is None:
         detect_logs = []
+    # 탐지 로그에 재귀 최대 깊이 제한 사유가 존재하는 경우 더 이상 분석 진행하지 않고 반환
+    elif TOO_MANY_RECURSION_DEPTH in detect_logs:
+        return detect_logs
+
+    # 현재 재귀 깊이가 최대 깊이를 초과한 경우 차단
+    if depth >= TRAVERSE_RECURSION_LIMIT:
+        detect_logs.append(TOO_MANY_RECURSION_DEPTH)
 
     tokens = statement.tokens
     for token in tokens:
@@ -43,7 +54,7 @@ def traverse(
 
         # (something) 형태인 경우 재귀 분석
         if token.is_group:
-            traverse(token, prev_token, detect_logs)
+            traverse(token, prev_token, detect_logs, depth + 1)
         # 이 외의 모든 경우
         else:
             if token.is_keyword:
