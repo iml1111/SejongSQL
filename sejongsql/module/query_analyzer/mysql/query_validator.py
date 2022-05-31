@@ -7,6 +7,7 @@ import MySQLdb as mysql
 from MySQLdb.connections import Connection
 from MySQLdb._exceptions import OperationalError, ProgrammingError
 from module.query_analyzer.uri import URI
+from module.query_analyzer.mysql.select_query_firewall import is_safe_select_query
 
 
 ValidationReport = namedtuple(
@@ -58,6 +59,10 @@ class SELECTQueryValidator:
         if not isinstance(query, str):
             raise TypeError('query must be "str".')
         query = self.refine_query(query)
+
+        safe, reason = is_safe_select_query(query)
+        if not safe:
+            return ValidationReport(result=False, msg='unsafe_query', body=reason)
 
         try:
             with self.mysql.cursor() as cursor:
