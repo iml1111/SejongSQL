@@ -59,10 +59,6 @@ class SELECTQueryValidator:
             raise TypeError('query must be "str".')
         query = self.refine_query(query)
 
-        # 1) SELECT로 시작하지 않을 경우 탈락
-        if not query.startswith('select'):
-            return ValidationReport(result=False, msg='not_startswith_select')
-
         try:
             with self.mysql.cursor() as cursor:
                 cursor.execute(f"EXPLAIN {query}")
