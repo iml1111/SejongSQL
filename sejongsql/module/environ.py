@@ -1,4 +1,5 @@
 import os, string
+from re import T
 from random import choice
 from uuid import uuid4
 from app_main.models import Env, EnvBelongClass, EnvBelongTable, Queue, User, Class
@@ -130,3 +131,48 @@ def create_env(user, query, env_name, classes=None):
     
     queue.status = 'complete'
     queue.save()
+
+
+def get_table(env, answer):
+    desc_table = []
+    select_table = []
+    
+    db = get_db(
+        user=env.account_name,
+        passwd=env.account_pw
+    )
+
+    cursor = db.cursor()
+    db.select_db(env.db_name)
+
+    env_table = EnvBelongTable.objects.filter(
+        env_id = env.id
+    ).values_list('table_name', flat=True)
+
+    for table in env_table:
+        if table in answer.lower():
+            cursor.execute(f'desc {table};')
+            desc_result = cursor.fetchall()
+            
+            select_dict = {}
+            desc_dict = {}
+            desc_temp = []
+            for result in desc_result:
+                query_dict = {}
+                query_dict['Field'] = result['Field']
+                query_dict['Type'] = result['Type']
+                query_dict['Key'] = result['Key']
+                query_dict['Null'] = result['Null']
+                desc_temp.append(query_dict)
+                
+            desc_dict['table_name'] = table
+            desc_dict['value'] = desc_temp
+            desc_table.append(desc_dict)
+
+            cursor.execute(f'select * from {table} limit 3;')
+            select_result = cursor.fetchall()
+            select_dict['table_name'] = table
+            select_dict['value'] = select_result
+            select_table.append(select_dict)
+    
+    return desc_table, select_table

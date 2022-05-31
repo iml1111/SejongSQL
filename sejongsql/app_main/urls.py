@@ -79,6 +79,10 @@ urlpatterns = [
         envs.ConnectEnvView.as_view(),
         name='read_my_env'
     ),
+    path('api/v1/pgroups/<int:pgroup_id>/problems',
+        problems.ProblemsInPgroupView.as_view(),
+        name='read_problems_in_pgroup'
+    ),
     path('api/v1/class/<int:class_id>/pgroups/<int:pgroup_id>/problems',
         problems.ProblemsInPgroupView.as_view(),
         name='create_problems_in_pgroup'
@@ -94,6 +98,18 @@ urlpatterns = [
     path('api/v1/problems/<int:problem_id>/run',
         problems.ProblemRunView.as_view(),
         name='run_problem'
+    ),
+    path('api/v1/problems/<int:problem_id>/submit',
+        problems.ProblemSubmitView.as_view(),
+        name='submit_problem'
+    ),
+    path('api/v1/users/me/problems',
+        problems.MyProblemView.as_view(),
+        name='read_my_all_problem'
+    ),
+    path('api/v1/problems/<int:usp_id>/me',
+        problems.UserSolveProblemView.as_view(),
+        name='read_my_certain_problem'
     ),
     path('api/v1/warnings', problems.WarningView.as_view(), name='create_warning'),
     path('api/v1/warnings', problems.WarningView.as_view(), name='create_warning')
