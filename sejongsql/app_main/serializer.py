@@ -1,6 +1,6 @@
 from django.utils import timezone
 from rest_framework import serializers
-from .models import User, EnvBelongTable, Warning, ProblemGroup
+from .models import User, EnvBelongTable, Warning, Problem, ProblemGroup, UserSolveProblem
 from django.db.models import F, Q
 
 
@@ -158,6 +158,7 @@ class MyEnvSrz(serializers.Serializer):
 
 
 class ProblemSrz(serializers.Serializer):
+    id = serializers.IntegerField()
     title = serializers.CharField(max_length=100)
     content = serializers.CharField(max_length=20000)
 
@@ -170,7 +171,30 @@ class ProblemInGroupSrz(serializers.Serializer):
     user_warnings = serializers.IntegerField()
 
 
+class MyProblemSrz(serializers.ModelSerializer):
+    usp_id = serializers.IntegerField()
+    accuracy = serializers.BooleanField()
+    
+    class Meta:
+        model = Problem
+        fields = ('id', 'usp_id', 'title', 'accuracy')
+
+
+class USPSrz(serializers.Serializer):
+    problem_id = serializers.IntegerField()
+    title = serializers.CharField(max_length=100)
+    content = serializers.CharField(max_length=20000)
+    query = serializers.CharField(max_length=1000)
+    accuracy = serializers.BooleanField()
+
+
 class WarningSrz(serializers.ModelSerializer):
     class Meta:
         model = Warning
         fields = '__all__'
+
+
+class UserWarningSrz(serializers.Serializer):
+    usp_id = serializers.IntegerField()
+    name = serializers.CharField(max_length=100)
+    content = serializers.CharField(max_length=100)
