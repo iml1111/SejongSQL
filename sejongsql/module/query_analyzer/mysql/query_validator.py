@@ -7,6 +7,7 @@ import MySQLdb as mysql
 from MySQLdb.connections import Connection
 from MySQLdb._exceptions import OperationalError, ProgrammingError
 from module.query_analyzer.uri import URI
+from module.query_analyzer.mysql.select_query_firewall import is_safe_select_query
 
 
 ValidationReport = namedtuple(
@@ -59,9 +60,9 @@ class SELECTQueryValidator:
             raise TypeError('query must be "str".')
         query = self.refine_query(query)
 
-        # 1) SELECT로 시작하지 않을 경우 탈락
-        if not query.startswith('select'):
-            return ValidationReport(result=False, msg='not_startswith_select')
+        safe, reason = is_safe_select_query(query)
+        if not safe:
+            return ValidationReport(result=False, msg='unsafe_query', body=reason)
 
         try:
             with self.mysql.cursor() as cursor:
