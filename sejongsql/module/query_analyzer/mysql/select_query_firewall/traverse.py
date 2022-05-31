@@ -1,4 +1,5 @@
 '''traverse module'''
+from typing import List
 from sqlparse.tokens import Token
 
 TRAVERSE_RECURSION_LIMIT = 20  # 재귀 최대 깊이 제한
@@ -19,7 +20,7 @@ def traverse(
     prev_token = None,  # FIXME: 1.0.0 개발까지 사용하지 않으면 삭제
     detect_logs = None,
     depth = 0  # 재귀 최대 깊이 제한 목적
-) -> list[str]:
+) -> List[str]:
     if detect_logs is None:
         detect_logs = []
     # 탐지 로그에 재귀 최대 깊이 제한 사유가 존재하는 경우 더 이상 분석 진행하지 않고 반환
