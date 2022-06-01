@@ -1,6 +1,10 @@
 from django.utils import timezone
 from rest_framework import serializers
-from .models import User, EnvBelongTable, Warning, Problem, ProblemGroup, UserSolveProblem
+from .models import (
+    User, EnvBelongTable, Warning,
+    Problem, ProblemGroup, UserSolveProblem,
+    UserBelongAuth
+)
 from django.db.models import F, Q
 
 
@@ -14,6 +18,12 @@ class SearchUserSrz(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ('id', 'sejong_id', 'name', 'major')
+
+
+class UserRoleSrz(serializers.ModelSerializer):
+    class Meta:
+        model = UserBelongAuth
+        fields = ('id', 'user_id', 'role', 'result')
 
 
 class UserInClassSrz(serializers.Serializer):

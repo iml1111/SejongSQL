@@ -393,7 +393,7 @@ class UserSearchView(APIView):
             obj = User.objects.filter(
                 sejong_id__startswith=data['sejong_id'],
                 role='general'
-                ).order_by('created_at')
+            ).order_by('created_at')
         
         user_srz = SearchUserSrz(obj, many=True).data
         

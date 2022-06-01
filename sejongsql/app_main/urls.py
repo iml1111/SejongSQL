@@ -25,7 +25,16 @@ urlpatterns = [
     ),
     path('api/auth/sejong', users.SejongAuthView.as_view(), name='sejong-auth'),
     path('api/auth/token/refresh', users.TokenView.as_view(), name='refresh-token'),
-
+    path(
+        'api/auth/role',
+        users.UserRoleView.as_view(),
+        name='create_update_user_role'
+    ),
+    path(
+        'api/auth/role/<int:role_id>',
+        users.UserRoleView.as_view(),
+        name='read_user_role'
+    ),
     path('api/v1/class', classes.ClassView.as_view(), name='create_class'),
     path(
         'api/v1/class/<int:class_id>', 
