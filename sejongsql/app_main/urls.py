@@ -108,6 +108,10 @@ urlpatterns = [
         problems.ProblemRunView.as_view(),
         name='run_problem'
     ),
+    path('api/v1/class/<int:class_id>/envs/<int:env_id>/run',
+        problems.EnvRunView.as_view(),
+        name='run_problem_with_env'
+    ),
     path('api/v1/problems/<int:problem_id>/submit',
         problems.ProblemSubmitView.as_view(),
         name='submit_problem'
