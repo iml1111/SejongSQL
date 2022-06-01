@@ -5,7 +5,7 @@ from rest_framework.views import APIView
 from module.response import OK, NO_CONTENT, BAD_REQUEST, FORBIDDEN, CREATED
 from module.validator import Validator, Json, Path
 from module.decorator import login_required, sa_required, get_user
-from module.environ import get_db, get_table
+from module.environ import get_db, get_table, run_problem
 from module.query_analyzer.mysql.query_validator import SELECTQueryValidator
 from module.query_analyzer.mysql.query_explainer import QueryExplainer
 from app_main.models import (
@@ -152,6 +152,7 @@ class ProblemsInPgroupView(APIView):
 
         env = Env.objects.filter(
             id=data['env_id'],
+            envbelongclass__class_id=data['class_id'],  #분반에 연결된 env만
             result='success'    #성공한 env만 적용.
         ).first()
         if not env:
@@ -303,6 +304,7 @@ class ProblemView(APIView):
         if data['env_id']:
             env = Env.objects.filter(
                 id=data['env_id'],
+                envbelongclass__class_id=data['class_id'],
                 result='success'
             ).first()
             if not env:
@@ -386,7 +388,6 @@ class ProblemRunView(APIView):
                 Path('problem_id', int),
                 Json('query', str)
             ])
-
         if not validator.is_valid:
             return BAD_REQUEST(validator.error_msg)
         data = validator.data
@@ -422,35 +423,7 @@ class ProblemRunView(APIView):
         if not problem.env_id:
             return FORBIDDEN("can't find env.")
 
-        db = get_db(
-            user=problem.env_id.account_name,
-            passwd=problem.env_id.account_pw
-        )
-        cursor = db.cursor()
-        db.select_db(problem.env_id.db_name)
-
-        validator = SELECTQueryValidator(
-            uri="mysql://" + str(problem.env_id.account_name) + ":" +
-                str(problem.env_id.account_pw) + "@" +
-                os.environ['SSQL_ORIGIN_MYSQL_HOST'] + ":" +
-                os.environ['SSQL_ORIGIN_MYSQL_PORT'] + "/" +
-                str(problem.env_id.db_name)
-        )
-        validator_result = validator.check_query(query=query)
-
-        status = True
-        if validator_result.result:
-            try:
-                cursor.execute(query)
-                query_result = cursor.fetchall()
-            except Exception as error:
-                status = False
-                query_result = str(error)
-        else:
-            status = False
-            query_result = validator_result.msg
-            query_result = query_result.replace(f"{problem.env_id.db_name}.", "")
-            query_result = query_result.replace(problem.env_id.db_name, "")
+        status, query_result = run_problem(problem.env_id, query)
 
         usp = UserSolveProblem(
             p_id=problem,
@@ -459,6 +432,56 @@ class ProblemRunView(APIView):
         )
         usp.save()
 
+        return OK({
+            'status': status,
+            'query_result': query_result
+        })
+
+
+class EnvRunView(APIView):
+
+    @jwt_required()
+    @login_required()
+    def post(self, request, **path):
+        """
+        문제 생성 시, 문제 실행 API
+        SA, 교수, 조교만 호출 가능
+        """
+
+        user = get_user(request)
+        validator = Validator(
+            request, path, params=[
+                Path('class_id', int),
+                Path('env_id', int),
+                Json('query', str)
+            ])
+        if not validator.is_valid:
+            return BAD_REQUEST(validator.error_msg)
+        data = validator.data
+
+        if not user.is_sa:
+            check_user = UserBelongClass.objects.filter(
+                user_id=user.id,
+                class_id=data['class_id']
+            ).first()
+            if not check_user:
+                return FORBIDDEN("can't find class.")
+            if not check_user.is_admin:
+                return FORBIDDEN("student can't access.")
+        
+        env = Env.objects.filter(
+            id=data['env_id'],
+            envbelongclass__class_id=data['class_id']
+        ).first()
+        if not env:
+            return FORBIDDEN("can't find env.")
+
+        if not data['query']:
+            return BAD_REQUEST("query does not exist.")
+        query = data['query'].lower()
+        
+        status, query_result = run_problem(env, query)
+        
         return OK({
             'status': status,
             'query_result': query_result
