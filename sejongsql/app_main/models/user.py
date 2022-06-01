@@ -17,3 +17,13 @@ class User(models.Model):
     @property
     def is_sa(self):
         return self.role =='sa'
+
+
+class UserBelongAuth(models.Model):
+    user_id = models.ForeignKey(User, on_delete=models.CASCADE, db_column='user_id')
+    role = models.CharField(max_length=100)
+    result = models.BooleanField(default=None, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'ssql_user_belong_auth'

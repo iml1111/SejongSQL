@@ -1,13 +1,21 @@
 from rest_framework.views import APIView
-from module.response import OK, UNAUTHORIZED, NO_CONTENT, BAD_REQUEST, FORBIDDEN, CONFLICT, CREATED
+from module.response import (
+    OK, UNAUTHORIZED, NO_CONTENT, 
+    BAD_REQUEST, FORBIDDEN, CONFLICT, 
+    NOT_FOUND, CREATED
+)
 from module.validator import Validator, Json, Path, Query
 from module.rules import MaxLen, MinLen
 from module.decorator import login_required, get_user, sa_required
-from app_main.models import User
-from app_main.serializer import UserSrz, SearchUserSrz
+from app_main.models import User, UserBelongAuth
+from app_main.serializer import UserSrz, SearchUserSrz, UserRoleSrz
 from django.utils import timezone
+from django.db.models import Q
 from django.contrib.auth.hashers import make_password, check_password
-from django_jwt_extended import jwt_required, create_access_token, create_refresh_token, get_jwt_identity
+from django_jwt_extended import (
+    jwt_required, create_access_token, 
+    create_refresh_token, get_jwt_identity
+)
 from sejong_univ_auth import auth, DosejongSession
 
 
@@ -21,6 +29,7 @@ class SignupView(APIView):
                 Json('id', str, rules=[MinLen(4), MaxLen(20)]),
                 Json('pw', str, rules=MinLen(8)),
                 Json('name', str),
+                Json('major', str, optional=True)
             ])
 
         if not validator.is_valid:
@@ -37,7 +46,9 @@ class SignupView(APIView):
             name = data['name'],
             pw_updated_at = timezone.now(),
         )
-        
+        if data['major']:
+            user.major = data['major']
+    
         user.save()
         return CREATED()
 
@@ -201,31 +212,113 @@ class AllUserView(APIView):
     @sa_required
     def get(self, request, **path):
         """
-        전체 사용자 검색 API
+        교수 검색 API
         SA 호출가능
         """
 
-        user = get_user(request)
         validator = Validator(
             request, path, params=[
-                Query('user_name', str, optional=True),
+                Query('user_info', str, optional=True),
             ])
-
         if not validator.is_valid:
             return BAD_REQUEST(validator.error_msg)
         data = validator.data
-        
-        if not user.is_sa:
-            return FORBIDDEN("Only SA can access.")
             
-        if not data['user_name']:
-            obj = User.objects.exclude(role='sa')
+        if not data['user_info']:
+            obj = User.objects.filter(role='prof')
         else:
             obj = User.objects.filter(
-                name__startswith=data['user_name'],
-                role='general'
+                Q(role='prof'),
+                (
+                    Q(name__startswith=data['user_info']) |
+                    Q(id__startswith=data['user_info']) |
+                    Q(major__startswith=data['user_info'])
                 )
+            )
 
         user_srz = SearchUserSrz(obj, many=True)
         return OK(user_srz.data)
 
+
+class UserRoleView(APIView):
+
+    @jwt_required()
+    @login_required(False)
+    @sa_required
+    def get(self, request, **path):
+        """
+        권한 요청 목록 반환 API
+        SA 호출가능
+        """
+
+        uba = UserBelongAuth.objects.all()
+        uba_srz = UserRoleSrz(uba, many=True)
+        return OK(uba_srz.data)
+
+
+    @jwt_required()
+    @login_required(False)
+    def post(self, request, **path):
+        """
+        교수 권한 변경 요청 API
+        SA는 요청 불가능
+        """
+
+        user = get_user(request)
+        if user.is_sa:
+            return BAD_REQUEST("Super Admin can't access.")
+
+        if UserBelongAuth.objects.filter(
+            user_id=user.id
+        ).exists():
+            return BAD_REQUEST("You have already requested.")
+            
+        uba = UserBelongAuth(
+            user_id=user,
+            role='prof'
+        )
+        uba.save()
+        return CREATED()
+
+
+    @jwt_required()
+    @login_required(False)
+    @sa_required
+    def put(self, request, **path):
+        """
+        권한 변경 API
+        SA만 호출 가능
+        """
+
+        validator = Validator(
+            request, path, params=[
+                Path('role_id', int),
+                Json('role', str)
+            ])
+        if not validator.is_valid:
+            return BAD_REQUEST(validator.error_msg)
+        data = validator.data
+
+        uba = UserBelongAuth.objects.filter(
+            id=data['role_id']
+        ).select_related(
+            'user_id'
+        ).first()
+        if not uba:
+            return NOT_FOUND
+
+        target = User.objects.filter(
+            id=uba.user_id.id
+        ).first()
+
+        target.role = data['role']
+        target.save()
+
+        if data['role'] == 'prof':
+            uba.result = True
+        else:
+            uba.result = False
+        uba.save()
+
+        return CREATED()
+        
