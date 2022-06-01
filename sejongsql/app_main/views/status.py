@@ -34,37 +34,33 @@ class StatusView(APIView):
             ubc = user.userbelongclass_set.filter(class_id=data['class_id']).first()
             if not ubc:
                 return FORBIDDEN("can't find class.")
-            
+        
+        if data['sejong_id'] and data['pgroup_id']:
+            obj = UserSolveProblem.objects.filter(
+                user_id__sejong_id__startswith=data['sejong_id'],
+                p_id__pg_id__class_id=data['class_id'],
+                p_id__pg_id=data['pgroup_id'],
+                submit=1
+            )
+        elif data['pgroup_id']:
+            obj = UserSolveProblem.objects.filter(
+                p_id__pg_id__class_id=data['class_id'],
+                p_id__pg_id=data['pgroup_id'],
+                submit=1
+            )
+        elif data['sejong_id']:
+            obj = UserSolveProblem.objects.filter(
+                p_id__pg_id__class_id=data['class_id'],
+                user_id__sejong_id__startswith=data['sejong_id'],
+                submit=1
+            )
+        else:
+            obj = UserSolveProblem.objects.filter(
+                p_id__pg_id__class_id=data['class_id'],
+                submit=1
+            )
+
         if user.is_sa or ubc.is_admin:  #관리자
-            if data['sejong_id'] and data['pgroup_id']:
-                obj = UserSolveProblem.objects.filter(
-                    user_id__sejong_id__startswith=data['sejong_id'],
-                    p_id__pg_id=data['pgroup_id'],
-                    submit=1
-                )
-            elif data['sejong_id']:
-                obj = UserSolveProblem.objects.filter(
-                    user_id__sejong_id__startswith=data['sejong_id'],
-                    submit=1
-                )
-            else:
-                user_in_class = UserBelongClass.objects.filter(
-                    class_id=data['class_id'],
-                    type='st'
-                ).values_list('user_id')
-
-                if data['pgroup_id']:
-                    obj = UserSolveProblem.objects.filter(
-                        user_id__in=user_in_class,
-                        p_id__pg_id=data['pgroup_id'],
-                        submit=1
-                    )
-                else:
-                    obj = UserSolveProblem.objects.filter(
-                        user_id__in=user_in_class,
-                        submit=1
-                    )
-
             status = obj.annotate(
                 usp_id=F('id'),
                 sejong_id=F('user_id__sejong_id'),
@@ -75,38 +71,8 @@ class StatusView(APIView):
 
             for i in status:
                 i.access = True
-            status = StatusSrz(status, many=True)
-            return OK(status.data)
+
         else:   #학생
-            if data['sejong_id'] and data['pgroup_id']:
-                obj = UserSolveProblem.objects.filter(
-                    user_id__sejong_id__startswith=data['sejong_id'],
-                    p_id__pg_id=data['pgroup_id'],
-                    submit=1
-                )   
-            elif data['sejong_id']:
-                obj = UserSolveProblem.objects.filter(
-                    user_id__sejong_id__startswith=data['sejong_id'],
-                    submit=1
-                )
-            else:
-                user_in_class = UserBelongClass.objects.filter(
-                    class_id=data['class_id'],
-                    type='st'
-                ).values_list('user_id')
-
-                if data['pgroup_id']:
-                    obj = UserSolveProblem.objects.filter(
-                        user_id__in=user_in_class,
-                        p_id__pg_id=data['pgroup_id'],
-                        submit=1
-                    )
-                else:
-                    obj = UserSolveProblem.objects.filter(
-                        user_id__in=user_in_class,
-                        submit=1
-                    )
-
             status = obj.annotate(
                 usp_id=F('id'),
                 sejong_id=F('user_id__sejong_id'),
@@ -122,5 +88,5 @@ class StatusView(APIView):
                 )
             ).order_by('-created_at')
 
-            status = StatusSrz(status, many=True)
-            return OK(status.data)
+        status = StatusSrz(status, many=True)
+        return OK(status.data)
