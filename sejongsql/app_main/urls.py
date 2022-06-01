@@ -25,7 +25,16 @@ urlpatterns = [
     ),
     path('api/auth/sejong', users.SejongAuthView.as_view(), name='sejong-auth'),
     path('api/auth/token/refresh', users.TokenView.as_view(), name='refresh-token'),
-
+    path(
+        'api/auth/role',
+        users.UserRoleView.as_view(),
+        name='create_update_user_role'
+    ),
+    path(
+        'api/auth/role/<int:role_id>',
+        users.UserRoleView.as_view(),
+        name='read_user_role'
+    ),
     path('api/v1/class', classes.ClassView.as_view(), name='create_class'),
     path(
         'api/v1/class/<int:class_id>', 
@@ -98,6 +107,10 @@ urlpatterns = [
     path('api/v1/problems/<int:problem_id>/run',
         problems.ProblemRunView.as_view(),
         name='run_problem'
+    ),
+    path('api/v1/class/<int:class_id>/envs/<int:env_id>/run',
+        problems.EnvRunView.as_view(),
+        name='run_problem_with_env'
     ),
     path('api/v1/problems/<int:problem_id>/submit',
         problems.ProblemSubmitView.as_view(),
