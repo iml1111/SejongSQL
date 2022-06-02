@@ -76,6 +76,13 @@ class EnvView(APIView):
                 return FORBIDDEN("same env name is already created.")
                 
         if data['class_id']:    #분반에 env 생성
+            if not user.is_sa:
+                ubc = user.userbelongclass_set.filter(class_id=int(data['class_id'])).first()
+                if not ubc:
+                    return FORBIDDEN("can't find class.")
+                if not ubc.is_admin:
+                    return FORBIDDEN("student can't access.")
+
             class_id = int(data['class_id'])
             classes = Class.objects.filter(id=class_id).first()
             if not classes:
