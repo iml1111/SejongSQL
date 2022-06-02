@@ -3,7 +3,7 @@ from rest_framework import serializers
 from .models import (
     User, EnvBelongTable, Warning,
     Problem, ProblemGroup, UserSolveProblem,
-    UserBelongAuth
+    UserBelongAuth, WarningBelongProblem
 )
 from django.db.models import F, Q
 
@@ -196,6 +196,32 @@ class USPSrz(serializers.Serializer):
     content = serializers.CharField(max_length=20000)
     query = serializers.CharField(max_length=1000)
     accuracy = serializers.BooleanField()
+
+
+class AllInProblemSrz(serializers.Serializer):
+    answer = serializers.CharField(max_length=100)
+    timelimit = serializers.FloatField()
+    title = serializers.CharField(max_length=100)
+    content = serializers.CharField(max_length=100)
+    warnings = serializers.SerializerMethodField()
+
+    def get_warnings(self, obj):
+        warnings = WarningBelongProblem.objects.filter(
+            p_id=obj.id
+        ).annotate(
+            warning=F('warning_id__id'),
+            name=F('warning_id__name'),
+            content=F('warning_id__content')
+        ).values('warning', 'name', 'content')
+
+        result = []
+        for warning in warnings:
+            result.append({
+                'id': warning['warning'],
+                'name': warning['name'],
+                'content': warning['content']
+            })
+        return result
 
 
 class WarningSrz(serializers.ModelSerializer):

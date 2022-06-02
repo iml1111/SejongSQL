@@ -2,7 +2,7 @@ import os
 from time import time
 from collections import defaultdict
 from rest_framework.views import APIView
-from module.response import OK, NO_CONTENT, BAD_REQUEST, FORBIDDEN, CREATED
+from module.response import OK, NO_CONTENT, BAD_REQUEST, FORBIDDEN, CREATED, NOT_FOUND
 from module.validator import Validator, Json, Path
 from module.decorator import login_required, sa_required, get_user
 from module.environ import get_db, get_table, run_problem
@@ -15,7 +15,8 @@ from app_main.models import (
 )
 from app_main.serializer import (
     WarningSrz, ProblemSrz, ProblemInGroupSrz,
-    MyProblemSrz, UserWarningSrz, USPSrz
+    MyProblemSrz, UserWarningSrz, USPSrz,
+    ClassEnvSrz, AllInProblemSrz
 )
 from django.db.models import F, Q, Count
 from django.utils import timezone
@@ -186,13 +187,14 @@ class ProblemView(APIView):
     @login_required()
     def get(self, request, **path):
         """
-        특정 문제 반환 API
-        학생인 경우, 해당 문제가 속한 문제집 활성화 여부 체크!
+        수정용 문제 반환 API
+        SA, 교수, 조교만 호출 가능
         """
 
         user = get_user(request)
         validator = Validator(
             request, path, params=[
+                Path('class_id', int),
                 Path('problem_id', int)
             ])
 
@@ -203,62 +205,30 @@ class ProblemView(APIView):
         if not user.is_sa:
             check_user = UserBelongClass.objects.filter(
                 user_id=user.id,
-                class_id__problemgroup__problem=data['problem_id'],
+                class_id=data['class_id']
             ).first()
-
             if not check_user:
                 return FORBIDDEN("can't find class.")
+            if not check_user.is_admin:
+                return FORBIDDEN("student can't access.")
         
-        if user.is_sa or check_user.is_admin:   #관리자
-            problem = Problem.objects.filter(
-                id=data['problem_id']
-            ).prefetch_related(
-                'usersolveproblem_set'
-            ).first()
-        else:   #학생
-            problem = Problem.objects.filter(
-                Q(id=data['problem_id']),
-                Q(pg_id__class_id__activate=1),
-                (
-                    (Q(pg_id__activate_start=None) | Q(pg_id__activate_start__lt=timezone.now())) &
-                    (Q(pg_id__activate_end=None) | Q(pg_id__activate_end__gt=timezone.now()))
-                )
-            ).prefetch_related(
-                'usersolveproblem_set'
-            ).first()   #분반 활성화, 문제집 활성화 체크
+        problem = Problem.objects.filter(
+            id=data['problem_id'],
+            pg_id__class_id=data['class_id']
+        ).select_related('env_id__user_id').first()
         if not problem:
-            return FORBIDDEN("can't find problem.")
+            return NOT_FOUND
+        
+        if not problem.env_id:
+            return FORBIDDEN("can't find env.")
 
-        result = problem.usersolveproblem_set.filter(
-            user_id=user.id,
-            submit=1
-        ).order_by('-created_at').first()
+        problem.env_id.owner = problem.env_id.user_id.id
+        problem.env_id.status = problem.env_id.result
 
-        problem_srz = ProblemSrz(problem).data
-        problem_srz['latest_query'] = result.query if result else None
-        problem_srz['warnings'] = []
-
-        if result:
-            warnings = WarningBelongUp.objects.filter(
-                up_id=result.id
-            ).annotate(
-                usp_id=F('up_id__id'),
-                name=F('warning_id__name'),
-                content=F('warning_id__content')
-            )
-            warning_srz = UserWarningSrz(warnings, many=True).data
-
-            for w in warning_srz:
-                problem_srz['warnings'].append({
-                    'name': w['name'],
-                    'content': w['content']
-                })     
-
-        if problem.env_id:
-            desc_table, select_table = get_table(problem.env_id, problem.answer)
-
-        problem_srz['desc_table'] = desc_table if desc_table else []
-        problem_srz['select_table'] = select_table if select_table else []
+        env_srz = ClassEnvSrz(problem.env_id).data
+        problem_srz = AllInProblemSrz(problem).data
+        problem_srz['env'] = env_srz
+        
         return OK(problem_srz)
 
 
@@ -639,6 +609,88 @@ class ProblemSubmitView(APIView):
                 'warnings': WarningSrz(user_warnings, many=True).data
             }
             return OK(result)
+
+
+class ReadProblemView(APIView):
+
+    @jwt_required()
+    @login_required()
+    def get(self, request, **path):
+        """
+        특정 문제 반환 API
+        학생인 경우, 해당 문제가 속한 문제집 활성화 여부 체크!
+        """
+
+        user = get_user(request)
+        validator = Validator(
+            request, path, params=[
+                Path('problem_id', int)
+            ])
+
+        if not validator.is_valid:
+            return BAD_REQUEST(validator.error_msg)
+        data = validator.data
+
+        if not user.is_sa:
+            check_user = UserBelongClass.objects.filter(
+                user_id=user.id,
+                class_id__problemgroup__problem=data['problem_id'],
+            ).first()
+
+            if not check_user:
+                return FORBIDDEN("can't find class.")
+        
+        if user.is_sa or check_user.is_admin:   #관리자
+            problem = Problem.objects.filter(
+                id=data['problem_id']
+            ).prefetch_related(
+                'usersolveproblem_set'
+            ).first()
+        else:   #학생
+            problem = Problem.objects.filter(
+                Q(id=data['problem_id']),
+                Q(pg_id__class_id__activate=1),
+                (
+                    (Q(pg_id__activate_start=None) | Q(pg_id__activate_start__lt=timezone.now())) &
+                    (Q(pg_id__activate_end=None) | Q(pg_id__activate_end__gt=timezone.now()))
+                )
+            ).prefetch_related(
+                'usersolveproblem_set'
+            ).first()   #분반 활성화, 문제집 활성화 체크
+        if not problem:
+            return FORBIDDEN("can't find problem.")
+
+        result = problem.usersolveproblem_set.filter(
+            user_id=user.id,
+            submit=1
+        ).order_by('-created_at').first()
+
+        problem_srz = ProblemSrz(problem).data
+        problem_srz['latest_query'] = result.query if result else None
+        problem_srz['warnings'] = []
+
+        if result:
+            warnings = WarningBelongUp.objects.filter(
+                up_id=result.id
+            ).annotate(
+                usp_id=F('up_id__id'),
+                name=F('warning_id__name'),
+                content=F('warning_id__content')
+            )
+            warning_srz = UserWarningSrz(warnings, many=True).data
+
+            for w in warning_srz:
+                problem_srz['warnings'].append({
+                    'name': w['name'],
+                    'content': w['content']
+                })     
+
+        if problem.env_id:
+            desc_table, select_table = get_table(problem.env_id, problem.answer)
+
+        problem_srz['desc_table'] = desc_table if desc_table else []
+        problem_srz['select_table'] = select_table if select_table else []
+        return OK(problem_srz)
 
 
 class MyProblemView(APIView):

@@ -98,10 +98,10 @@ urlpatterns = [
     ),
     path('api/v1/class/<int:class_id>/problems/<int:problem_id>',
         problems.ProblemView.as_view(),
-        name='update_delete_problems'
+        name='read_update_delete_problems'
     ),
     path('api/v1/problems/<int:problem_id>',
-        problems.ProblemView.as_view(),
+        problems.ReadProblemView.as_view(),
         name='read_problems'
     ),
     path('api/v1/problems/<int:problem_id>/run',
