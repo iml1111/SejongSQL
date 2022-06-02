@@ -218,16 +218,14 @@ class ProblemView(APIView):
         ).select_related('env_id__user_id').first()
         if not problem:
             return NOT_FOUND
-        
-        if not problem.env_id:
-            return FORBIDDEN("can't find env.")
-
-        problem.env_id.owner = problem.env_id.user_id.id
-        problem.env_id.status = problem.env_id.result
+    
+        if problem.env_id:
+            problem.env_id.owner = problem.env_id.user_id.id
+            problem.env_id.status = problem.env_id.result
 
         env_srz = ClassEnvSrz(problem.env_id).data
         problem_srz = AllInProblemSrz(problem).data
-        problem_srz['env'] = env_srz
+        problem_srz['env'] = env_srz if env_srz['id'] else None
         
         return OK(problem_srz)
 
