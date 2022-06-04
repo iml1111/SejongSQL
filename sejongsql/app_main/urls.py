@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import index, users, classes, pgroup, envs, problems, management
+from .views import index, users, classes, pgroup, envs, problems, management, status
 
 from .views import async_sample, error_sample
 
@@ -123,6 +123,10 @@ urlpatterns = [
     path('api/v1/problems/<int:usp_id>/me',
         problems.UserSolveProblemView.as_view(),
         name='read_my_certain_problem'
+    ),
+    path('api/v1/class/<int:class_id>/status',
+        status.StatusView.as_view(),
+        name='get_status'
     ),
     path('api/v1/warnings', problems.WarningView.as_view(), name='create_warning'),
     path('api/v1/warnings', problems.WarningView.as_view(), name='create_warning')
