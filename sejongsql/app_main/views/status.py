@@ -2,7 +2,7 @@ from rest_framework.views import APIView
 from module.response import OK, BAD_REQUEST, FORBIDDEN
 from module.validator import Validator, Path, Query
 from module.decorator import login_required, get_user
-from app_main.models import UserBelongClass, UserSolveProblem
+from app_main.models import UserSolveProblem
 from app_main.serializer import StatusSrz
 from django.db.models import F,  Case, When
 from django_jwt_extended import jwt_required
