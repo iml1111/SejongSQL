@@ -153,17 +153,15 @@ def run_problem(env, query):
 
     status = True
     if validator_result.result:
-        try:
-            cursor.execute(query)
-            query_result = cursor.fetchall()
-        except Exception as error:
-            status = False
-            query_result = str(error)
+        cursor.execute(query)
+        query_result = cursor.fetchall()
     else:
         status = False
         query_result = validator_result.msg
         query_result = query_result.replace(f"{env.db_name}.", "")
         query_result = query_result.replace(env.db_name, "")
+        index = query_result.index('"') + 1
+        query_result = query_result[index: -2]
     
     return status, query_result
 
