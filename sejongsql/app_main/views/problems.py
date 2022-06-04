@@ -1,6 +1,8 @@
 import os
 from time import time
 from collections import defaultdict
+from chardet import detect
+from urllib.parse import quote_from_bytes
 from rest_framework.views import APIView
 from module.response import OK, NO_CONTENT, BAD_REQUEST, FORBIDDEN, CREATED
 from module.validator import Validator, Json, Path
@@ -418,7 +420,7 @@ class ProblemRunView(APIView):
         
         if not data['query']:
             return BAD_REQUEST("query does not exist.")
-        query = data['query'].lower()
+        query = data['query'].lower().replace('\xa0', ' ')
 
         if not problem.env_id:
             return FORBIDDEN("can't find env.")
@@ -478,8 +480,8 @@ class EnvRunView(APIView):
 
         if not data['query']:
             return BAD_REQUEST("query does not exist.")
-        query = data['query'].lower()
-        
+        query = data['query'].lower().replace('\xa0', ' ')
+
         status, query_result = run_problem(env, query)
         
         return OK({
@@ -540,7 +542,7 @@ class ProblemSubmitView(APIView):
         
         if not data['query']:
             return BAD_REQUEST("query does not exist.")
-        query = data['query'].lower()
+        query = data['query'].lower().replace('\xa0', ' ')
 
         if not problem.env_id:
             return FORBIDDEN("can't find env.")
