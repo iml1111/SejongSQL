@@ -1,8 +1,6 @@
 import os
 from time import time
 from collections import defaultdict
-from chardet import detect
-from urllib.parse import quote_from_bytes
 from rest_framework.views import APIView
 from module.response import OK, NO_CONTENT, BAD_REQUEST, FORBIDDEN, CREATED, NOT_FOUND
 from module.validator import Validator, Json, Path
