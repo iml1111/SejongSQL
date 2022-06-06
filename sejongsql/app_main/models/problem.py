@@ -8,6 +8,7 @@ class ProblemGroup(models.Model):
     name = models.CharField(max_length=100)
     comment = models.CharField(max_length=100)
     exam = models.BooleanField(default=0)
+    activate = models.BooleanField(default=1)
     activate_start = models.DateTimeField(default=None, null=True)
     activate_end = models.DateTimeField(default=None, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
