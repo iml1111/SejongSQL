@@ -1,9 +1,16 @@
 import os, string
-from re import T
+from time import time
 from random import choice
 from uuid import uuid4
-from app_main.models import Env, EnvBelongClass, EnvBelongTable, Queue, User, Class
+from collections import defaultdict
+from app_main.models import (
+    Env, EnvBelongClass, EnvBelongTable,
+    Queue, User, Class,
+    Warning, WarningBelongUp, UserSolveProblem
+)
+from app_main.serializer import WarningSrz
 from module.query_analyzer.mysql.query_validator import SELECTQueryValidator
+from module.query_analyzer.mysql.query_explainer import QueryExplainer
 from module.query_analyzer.mysql.query_parser import parse
 from MySQLdb import connect, cursors
 
@@ -164,6 +171,93 @@ def run_problem(env, query):
         query_result = query_result[index: -2]
     
     return status, query_result
+
+
+def submit_problem(user, problem, env, query, warnings):
+    db = get_db(
+        user=env.account_name,
+        passwd=env.account_pw
+    )
+    cursor = db.cursor()
+    db.select_db(env.db_name)
+
+    explain = QueryExplainer(
+        uri="mysql://" + str(env.account_name) + ":" +
+            str(env.account_pw) + "@" +
+            os.environ['SSQL_ORIGIN_MYSQL_HOST'] + ":" +
+            os.environ['SSQL_ORIGIN_MYSQL_PORT'] + "/" +
+            str(env.db_name)
+    )
+    res = explain.explain_query(query)
+
+    if res.report_type == 'validation_report':  #올바르지 않은 쿼리
+        status = False
+        accuracy = False
+        warning_result = [] #실행이 불가능한 쿼리는 warning도 걸리지 않음
+
+        usp = UserSolveProblem(
+            p_id=problem,
+            user_id=user,
+            query=query,
+            accuracy=accuracy,
+            submit=True,
+        )
+        usp.save()
+    else:
+        answer = problem.answer.lower().replace('\n', '').replace(' ','')
+        tic = time()
+        cursor.execute(query)
+        toc = time()
+        query_result = cursor.fetchall()
+
+        cursor.execute(problem.answer.lower())
+        answer_result = cursor.fetchall()
+
+        if 'orderby' in answer: #정답에서 order by를 요구할 때
+            accuracy = True if query_result == answer_result else False
+        else:
+            #해시화해서 비교
+            hash_dict = defaultdict(str)
+            p_answer = set()
+            for id, result in enumerate(answer_result):
+                hash_dict[str(result)] = f"HASH{id}"
+                p_answer.add(f"HASH{id}")
+
+            u_answer = set()
+            for result in query_result:
+                u_answer.add(hash_dict[str(result)])
+                
+            accuracy = True if u_answer == p_answer else False  
+        
+        checked_warnings = [warning.code for warning in res.warnings]
+
+        if (toc-tic) > problem.timelimit:   #시간초과
+            checked_warnings.append('time_limit')
+        
+        user_warnings = Warning.objects.filter(
+            id__in=warnings,    #문제에 걸린 warning 중에서
+            name__in=checked_warnings   #user가 걸린 warning 반환
+        )
+
+        usp = UserSolveProblem(
+            p_id=problem,
+            user_id=user,
+            query=query,
+            accuracy=accuracy,
+            submit=True,
+        )
+        usp.save()
+
+        for warning in user_warnings:
+            wbp = WarningBelongUp(
+                up_id=usp,
+                warning_id=warning
+            )
+            wbp.save()
+
+        status = True
+        warning_result = WarningSrz(user_warnings, many=True).data
+    return status, accuracy, warning_result
 
 
 def get_table(env, answer):

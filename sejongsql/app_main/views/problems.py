@@ -1,13 +1,11 @@
-import os
-from time import time
-from collections import defaultdict
 from rest_framework.views import APIView
-from module.response import OK, NO_CONTENT, BAD_REQUEST, FORBIDDEN, CREATED, NOT_FOUND
+from module.response import (
+    OK, NO_CONTENT, BAD_REQUEST,
+    FORBIDDEN, CREATED, NOT_FOUND
+)
 from module.validator import Validator, Json, Path
 from module.decorator import login_required, sa_required, get_user
-from module.environ import get_db, get_table, run_problem
-from module.query_analyzer.mysql.query_validator import SELECTQueryValidator
-from module.query_analyzer.mysql.query_explainer import QueryExplainer
+from module.environ import get_table, run_problem, submit_problem
 from app_main.models import (
     ProblemGroup, Problem, Env, 
     Warning, WarningBelongProblem, UserBelongClass, 
@@ -60,11 +58,8 @@ class ProblemsInPgroupView(APIView):
         else:   #학생
             problems = Problem.objects.filter(
                 Q(pg_id=data['pgroup_id']),
-                Q(pg_id__class_id__activate=1),
-                (
-                    (Q(pg_id__activate_start=None) | Q(pg_id__activate_start__lt=timezone.now())) &
-                    (Q(pg_id__activate_end=None) | Q(pg_id__activate_end__gt=timezone.now()))
-                )   #분반 활성화, 문제집 활성화 체크
+                Q(pg_id__class_id__activate=True), #분반 활성화인지
+                Q(pg_id__activate=True),   #문제집 활성화인지
             ).annotate(
                 problem_warnings=Count('warningbelongproblem'),
             ).order_by('id')
@@ -375,11 +370,12 @@ class ProblemRunView(APIView):
         else:   #학생
             problem = Problem.objects.filter(
                 Q(id=data['problem_id']),
-                Q(pg_id__class_id__activate=1),
+                Q(pg_id__class_id__activate=True), #분반 활성화인지
+                Q(pg_id__activate=True),   #문제집 활성화인지
                 (
                     (Q(pg_id__activate_start=None) | Q(pg_id__activate_start__lt=timezone.now())) &
                     (Q(pg_id__activate_end=None) | Q(pg_id__activate_end__gt=timezone.now()))
-                )
+                )   #활성화가 가능한 시간인지
             ).select_related('env_id').first()   #분반 활성화, 문제집 활성화 체크
         if not problem:
             return FORBIDDEN("can't find problem.")
@@ -494,11 +490,12 @@ class ProblemSubmitView(APIView):
         else:   #학생
             problem = Problem.objects.filter(
                 Q(id=data['problem_id']),
-                Q(pg_id__class_id__activate=1),
+                Q(pg_id__class_id__activate=True), #분반 활성화인지
+                Q(pg_id__activate=True),   #문제집 활성화인지
                 (
                     (Q(pg_id__activate_start=None) | Q(pg_id__activate_start__lt=timezone.now())) &
                     (Q(pg_id__activate_end=None) | Q(pg_id__activate_end__gt=timezone.now()))
-                )
+                )   #활성화가 가능한 시간인지
             ).prefetch_related(
                 'warningbelongproblem_set'
             ).select_related('env_id').first()   #분반 활성화, 문제집 활성화 체크
@@ -518,95 +515,19 @@ class ProblemSubmitView(APIView):
             flat=True
         )
         
-        db = get_db(
-            user=problem.env_id.account_name,
-            passwd=problem.env_id.account_pw
+        status, accuracy, warning_result = submit_problem(
+            user=user,
+            problem=problem,
+            env=problem.env_id,
+            query=query,
+            warnings=warnings,
         )
-        cursor = db.cursor()
-        db.select_db(problem.env_id.db_name)
-
-        explain = QueryExplainer(
-            uri="mysql://" + str(problem.env_id.account_name) + ":" +
-                str(problem.env_id.account_pw) + "@" +
-                os.environ['SSQL_ORIGIN_MYSQL_HOST'] + ":" +
-                os.environ['SSQL_ORIGIN_MYSQL_PORT'] + "/" +
-                str(problem.env_id.db_name)
-        )
-        res = explain.explain_query(query)
-
-        if res.report_type == 'validation_report':  #올바르지 않은 쿼리
-            usp = UserSolveProblem(
-                p_id=problem,
-                user_id=user,
-                query=query,
-                accuracy=False,
-                submit=True,
-            )
-            usp.save()  #실행이 불가능한 쿼리는 warning도 걸리지 않음.
-
-            return OK({
-                'status': False,
-                'accuracy': False,
-                'warnings': [],
-            })
-        else:
-            answer = problem.answer.lower().replace('\n', '').replace(' ','')
-            tic = time()
-            cursor.execute(query)
-            toc = time()
-            query_result = cursor.fetchall()
-
-            cursor.execute(problem.answer.lower())
-            answer_result = cursor.fetchall()
-
-            if 'orderby' in answer: #정답에서 order by를 요구할 때
-                accuracy = True if query_result == answer_result else False
-            else:
-                #해시화해서 비교
-                hash_dict = defaultdict(str)
-                p_answer = set()
-                for id, result in enumerate(answer_result):
-                    hash_dict[str(result)] = f"HASH{id}"
-                    p_answer.add(f"HASH{id}")
-
-                u_answer = set()
-                for result in query_result:
-                    u_answer.add(hash_dict[str(result)])
-                    
-                accuracy = True if u_answer == p_answer else False  
-            
-            checked_warnings = [warning.code for warning in res.warnings]
-
-            if (toc-tic) > problem.timelimit:   #시간초과
-                checked_warnings.append('time_limit')
-            
-            user_warnings = Warning.objects.filter(
-                id__in=warnings,    #문제에 걸린 warning 중에서
-                name__in=checked_warnings   #user가 걸린 warning 반환
-            )
-
-            usp = UserSolveProblem(
-                p_id=problem,
-                user_id=user,
-                query=query,
-                accuracy=accuracy,
-                submit=True,
-            )
-            usp.save()
-
-            for warning in user_warnings:
-                wbp = WarningBelongUp(
-                    up_id=usp,
-                    warning_id=warning
-                )
-                wbp.save()
-
-            result = {
-                'status': True,
-                'accuracy': accuracy,
-                'warnings': WarningSrz(user_warnings, many=True).data
-            }
-            return OK(result)
+        
+        return OK({
+            'status': status,
+            'accuracy': accuracy,
+            'warnings': warning_result
+        })
 
 
 class ReadProblemView(APIView):
@@ -647,14 +568,15 @@ class ReadProblemView(APIView):
         else:   #학생
             problem = Problem.objects.filter(
                 Q(id=data['problem_id']),
-                Q(pg_id__class_id__activate=1),
+                Q(pg_id__class_id__activate=True), #분반 활성화인지
+                Q(pg_id__activate=True),   #문제집 활성화인지
                 (
                     (Q(pg_id__activate_start=None) | Q(pg_id__activate_start__lt=timezone.now())) &
                     (Q(pg_id__activate_end=None) | Q(pg_id__activate_end__gt=timezone.now()))
-                )
+                )   #활성화가 가능한 시간인지
             ).prefetch_related(
                 'usersolveproblem_set'
-            ).first()   #분반 활성화, 문제집 활성화 체크
+            ).first()
         if not problem:
             return FORBIDDEN("can't find problem.")
 

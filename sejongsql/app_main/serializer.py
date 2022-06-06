@@ -228,12 +228,13 @@ class StatusSrz(serializers.ModelSerializer):
     sejong_id = serializers.CharField(max_length=100)
     pg_name = serializers.CharField(max_length=100)
     p_title = serializers.CharField(max_length=100)
+    accuracy = serializers.BooleanField()
     p_created_at = serializers.DateTimeField()
     access = serializers.BooleanField()
 
     class Meta:
         model = UserSolveProblem
-        fields = ('usp_id', 'user_id', 'sejong_id', 'pg_name', 'p_id', 'p_title', 'p_created_at', 'access')
+        fields = ('usp_id', 'user_id', 'sejong_id', 'pg_name', 'p_id', 'p_title', 'accuracy', 'p_created_at', 'access')
 
 
 class WarningSrz(serializers.ModelSerializer):
