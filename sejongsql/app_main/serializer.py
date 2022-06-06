@@ -128,7 +128,6 @@ class ProblemGroupSrz(serializers.Serializer):
 
 
 class CertainPgroupSrz(serializers.ModelSerializer):
-    activate = serializers.BooleanField()
     class Meta:
         model = ProblemGroup
         fields = ('id', 'name', 'comment', 'exam', 'activate', 'activate_start', 'activate_end')
