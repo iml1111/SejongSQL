@@ -167,9 +167,13 @@ def run_problem(env, query):
         query_result = validator_result.msg
         query_result = query_result.replace(f"{env.db_name}.", "")
         query_result = query_result.replace(env.db_name, "")
-        index = query_result.index('"') + 1
-        query_result = query_result[index: -2]
-    
+        index_1 = query_result.find('"')
+        index_2 = query_result.find("'")
+        if index_1 != -1: # 쌍따옴표로 감싸진 mysql error문
+            query_result = query_result[index_1+1: -2]
+        elif index_2 != -1: #따옴표로 감싸진 mysql error문
+            query_result = query_result[index_2+1: -2]
+        
     return status, query_result
 
 

@@ -64,6 +64,7 @@ class ClassView(APIView):
         else:
             if data['class_id']:
                 classes = Class.objects.filter(
+                    Q(id=data['class_id']),
                     Q(userbelongclass__user_id=user.id),
                     Q(userbelongclass__type='prof') |
                     Q(userbelongclass__type='ta') |
