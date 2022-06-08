@@ -105,7 +105,7 @@ class ClassView(APIView):
         분반 생성 API
         SA만 호출 가능
         """
-
+        
         validator = Validator(
             request, path, params=[
                 Json('name', str),
@@ -242,16 +242,15 @@ class ClassUserView(APIView):
                 return FORBIDDEN("student can't access.")
 
         users = User.objects.filter(
-            userbelongclass__class_id=data['class_id'],
-        ).exclude(
-            userbelongclass__type='prof'
+            Q(userbelongclass__class_id=data['class_id']),
+            Q(userbelongclass__type__in=('ta','st'))
         ).annotate(
-            type=F('userbelongclass__type')
+            type=F('userbelongclass__type'),
+            ubc_date=F('userbelongclass__created_at')
         )
 
         for user in users:
-            ubc = UserBelongClass.objects.filter(user_id=user.id).first()
-            user.created_at = ubc.created_at
+            user.created_at = user.ubc_date
         users_srz = UserInClassSrz(users, many=True).data
         return OK(users_srz)
 
