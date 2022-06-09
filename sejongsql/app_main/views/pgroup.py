@@ -8,7 +8,8 @@ from module.decorator import login_required, get_user
 from app_main.models import Class, ProblemGroup, Problem, UserBelongClass
 from app_main.serializer import ProblemGroupSrz, CertainPgroupSrz
 from datetime import datetime
-from django.db.models import Count
+from django.utils import timezone
+from django.db.models import Count, Q
 from django_jwt_extended import jwt_required
 
 
@@ -44,9 +45,21 @@ class PgroupView(APIView):
             )
         else:   #학생
             pgroups = ProblemGroup.objects.filter(
-                class_id=data['class_id'],
-                class_id__activate=True,    #활성화된 분반인지
-                activate=True,  #활성화인 문제집인지
+                Q(class_id=data['class_id']),
+                Q(class_id__activate=True),    #활성화된 분반인지
+                (
+                    Q(exam=True) &
+                    Q(activate=True)    #시험모드이면서 활성화일 때
+                ) | 
+                (
+
+                    Q(exam=False) &
+                    Q(activate=True) &  #시험모드가 아니고 활성화이면
+                    (
+                        (Q(activate_start=None) | Q(activate_start__lt=timezone.now())) &
+                        (Q(activate_end=None) | Q(activate_end__gt=timezone.now()))
+                    )   #활성화 시간인지까지 체크
+                )
             ).annotate(
                 problem_cnt=Count('problem__id'),
             )

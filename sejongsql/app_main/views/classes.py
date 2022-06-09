@@ -55,7 +55,7 @@ class ClassView(APIView):
                 ).prefetch_related(
                     'userbelongclass_set',
                     'problemgroup_set'
-                )
+                ).order_by('id')
                 for obj in classes:
                     obj.type = "Super Admin"
                 
@@ -91,7 +91,7 @@ class ClassView(APIView):
                 ).prefetch_related(
                     'userbelongclass_set',
                     'problemgroup_set'
-                )
+                ).order_by('id')
 
                 class_srz = ClassSrz(classes, many=True)
                 return OK(class_srz.data)
