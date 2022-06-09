@@ -605,10 +605,10 @@ class ReadProblemView(APIView):
                     'content': w['content']
                 })     
 
+        problem_srz['desc_table'] = []
         if problem.env_id:
             desc_table = get_table(problem.env_id)
-
-        problem_srz['desc_table'] = desc_table if desc_table else []
+            problem_srz['desc_table'] = desc_table if desc_table else []
         return OK(problem_srz)
 
 
@@ -759,14 +759,13 @@ class UserSolveProblemView(APIView):
             id=usp.env_id
         ).first()
 
+        usp_srz['desc_table'] = []
         if env:
             desc_table= get_table(env)
-        
-        usp_srz['desc_table'] = desc_table if desc_table else []
+            usp_srz['desc_table'] = desc_table if desc_table else []
         return OK(usp_srz)
 
     
-
 class WarningView(APIView):
 
     @jwt_required()
