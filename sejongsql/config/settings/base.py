@@ -131,7 +131,7 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 #Async Queue
-ASYNC_QUEUE_WORKER = 3
+ASYNC_QUEUE_WORKER = 5
 ASYNC_QUEUE_SIZE = 100
 
 #Sql File
