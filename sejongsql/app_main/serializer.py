@@ -85,11 +85,19 @@ class ClassSrz(serializers.Serializer):
             return pgroup
         else:
             pgroup = obj.problemgroup_set.filter(
-                Q(exam=1) | #시험모드이거나
                 (
-                    (Q(activate_start=None) | Q(activate_start__lt=timezone.now())) &
-                    (Q(activate_end=None) | Q(activate_end__gt=timezone.now()))
-                )   #활성화일 때만 반환
+                    Q(exam=True) &
+                    Q(activate=True)    #시험모드이면서 활성화일 때
+                ) | 
+                (
+
+                    Q(exam=False) &
+                    Q(activate=True) &  #시험모드가 아니고 활성화이면
+                    (
+                        (Q(activate_start=None) | Q(activate_start__lt=timezone.now())) &
+                        (Q(activate_end=None) | Q(activate_end__gt=timezone.now()))
+                    )   #활성화 시간인지까지 체크
+                )
             ).values(
                 'id',
                 'name'
