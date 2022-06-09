@@ -606,10 +606,9 @@ class ReadProblemView(APIView):
                 })     
 
         if problem.env_id:
-            desc_table, select_table = get_table(problem.env_id, problem.answer)
+            desc_table = get_table(problem.env_id)
 
         problem_srz['desc_table'] = desc_table if desc_table else []
-        problem_srz['select_table'] = select_table if select_table else []
         return OK(problem_srz)
 
 
@@ -761,10 +760,9 @@ class UserSolveProblemView(APIView):
         ).first()
 
         if env:
-            desc_table, select_table = get_table(env, usp.answer)
+            desc_table= get_table(env)
         
         usp_srz['desc_table'] = desc_table if desc_table else []
-        usp_srz['select_table'] = select_table if select_table else []
         return OK(usp_srz)
 
     
