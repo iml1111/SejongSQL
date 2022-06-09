@@ -1,3 +1,4 @@
+import re
 from .exceptions import InvalidRuleParameter
 from abc import ABCMeta, abstractmethod
 
@@ -42,3 +43,27 @@ class MaxLen(ValidationRule):
         return self._num >= len(data)
 
 
+class IsAlNum(ValidationRule):
+
+    def __init__(self):
+        pass
+
+    def invalid_str(self):
+        return "must consist of numbers and alphabets."
+
+    def is_valid(self, data):
+        _len = len(data)
+
+        _string = re.findall('[a-z,A-Z]', data)
+        _num = re.findall('[1-9]', data)
+
+        if _len != len(''.join(_string + _num)):
+            return False
+        
+        if not _string:
+            return False
+        
+        if not _num:
+            return False
+        
+        return True
