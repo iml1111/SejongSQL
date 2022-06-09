@@ -75,13 +75,12 @@ def traverse(
             if token.ttype is Token.Name or token.ttype is Token.Keyword:
                 if is_unsafe_identifier(token.value):
                     detect_logs.append(token.value)
+                # 로컬 변수 접근 연산자 차단
+                elif token.value.startswith('@'):
+                    detect_logs.append(token.value)
 
             # 연산자인 경우
             elif token.ttype is Token.Operator:
-                # 로컬 변수 접근 연산자 차단
-                if token.value == '@':
-                    detect_logs.append(token.value)
-
                 # 시스템 변수 접근 연산자 차단
                 if token.value == '@@':
                     detect_logs.append(token.value)
