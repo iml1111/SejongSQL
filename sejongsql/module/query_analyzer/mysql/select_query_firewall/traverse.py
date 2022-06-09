@@ -12,7 +12,8 @@ def is_unsafe_identifier(identifier: str):
         'PERFORMANCE_SCHEMA',
         'SYS',
         'OUTFILE',   # secure_file_priv
-        'LOAD_FILE'  # secure_file_priv
+        'LOAD_FILE', # secure_file_priv
+        'BENCHMARK'  # server resource
     ]
 
 def traverse(
