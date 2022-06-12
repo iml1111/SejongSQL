@@ -5,7 +5,7 @@ from module.response import (
     NOT_FOUND, CREATED
 )
 from module.validator import Validator, Json, Path, Query
-from module.rules import MaxLen, MinLen
+from module.rules import MaxLen, MinLen, IsAlNum, IsSpace
 from module.decorator import login_required, get_user, sa_required
 from app_main.models import User, UserBelongAuth
 from app_main.serializer import UserSrz, SearchUserSrz, UserRoleSrz
@@ -26,8 +26,8 @@ class SignupView(APIView):
 
         validator = Validator(
             request, path, params=[
-                Json('id', str, rules=[MinLen(4), MaxLen(20)]),
-                Json('pw', str, rules=MinLen(8)),
+                Json('id', str, rules=[MinLen(4), MaxLen(20), IsSpace()]),
+                Json('pw', str, rules=[MinLen(8), IsAlNum()]),
                 Json('name', str),
                 Json('major', str, optional=True)
             ])
