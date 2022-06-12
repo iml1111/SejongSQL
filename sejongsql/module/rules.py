@@ -75,10 +75,15 @@ class IsKorean(ValidationRule):
         pass
 
     def invalid_str(self):
-        return "must consist of perfect korean."
+        return "must consist of perfect Korean or English."
 
     def is_valid(self, data):
         _len = len(data)
-        _string = re.findall('[가-힣]*', data)
+        _korean = re.findall('[가-힣]*', data)
+        _english = re.findall('[a-z|A-Z\s]*', data)
 
-        return _len == len(''.join(_string))
+        if len(''.join(_korean)):
+            return _len == len(''.join(_korean))
+
+        if len(''.join(_english)):
+            return _len == len(''.join(_english))
