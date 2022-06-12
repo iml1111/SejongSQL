@@ -67,3 +67,17 @@ class IsAlNum(ValidationRule):
             return False
         
         return True
+
+
+class IsSpace(ValidationRule):
+
+    def __init__(self):
+        pass
+
+    def invalid_str(self):
+        return "don't allow space."
+
+    def is_valid(self, data):
+        if ' ' in data:
+            return False
+        return True
