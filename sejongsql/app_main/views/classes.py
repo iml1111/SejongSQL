@@ -295,7 +295,8 @@ class ClassUserView(APIView):
         ubc_user = UserBelongClass.objects.filter(
             user_id=data['user_id'],
             class_id=data['class_id']
-            ).first()
+        ).first()
+
         if ubc_user:    #이미 있는 사용자인지 확인
             return FORBIDDEN("user is already in class.")  
 
@@ -308,6 +309,22 @@ class ClassUserView(APIView):
             type = data['type'],
         )
         obj.save()
+
+        ubc_user = UserBelongClass.objects.filter(
+            user_id=data['user_id'],
+            class_id=data['class_id']
+        ).order_by('created_at')
+
+        # Race Condition 일 때만 들어옴 ㅋ
+        cnt = ubc_user.count()
+        if cnt >= 2:
+            for i in range(1, cnt):
+                if ubc_user[i].type == data['type']:
+                    if UserBelongClass.objects.filter(
+                        id=ubc_user[i].id
+                    ).exists():
+                        ubc_user[i].delete()
+                        return FORBIDDEN("user is already in class.")            
 
         return CREATED()
     
