@@ -67,23 +67,3 @@ class IsAlNum(ValidationRule):
             return False
         
         return True
-
-
-class IsKorean(ValidationRule):
-
-    def __init__(self):
-        pass
-
-    def invalid_str(self):
-        return "must consist of perfect Korean or English."
-
-    def is_valid(self, data):
-        _len = len(data)
-        _korean = re.findall('[가-힣]*', data)
-        _english = re.findall('[a-z|A-Z\s]*', data)
-
-        if len(''.join(_korean)):
-            return _len == len(''.join(_korean))
-
-        if len(''.join(_english)):
-            return _len == len(''.join(_english))
