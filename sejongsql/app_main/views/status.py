@@ -23,12 +23,17 @@ class StatusView(APIView):
             request, path, params=[
                 Path('class_id', int),
                 Query('pgroup_id', str, optional=True),
-                Query('sejong_id', str,  optional=True)
+                Query('sejong_id', str,  optional=True),
+                Query('skip', str, optional=True),
+                Query('limit', str, optional=True)
             ])
 
         if not validator.is_valid:
             return BAD_REQUEST(validator.error_msg)
         data = validator.data
+
+        skip = int(data['skip']) if data['skip'] else None
+        limit = int(data['limit']) if data['limit'] else None
 
         if not user.is_sa:
             ubc = user.userbelongclass_set.filter(class_id=data['class_id']).first()
@@ -69,6 +74,9 @@ class StatusView(APIView):
                 p_created_at=F('created_at')
             ).order_by('-created_at')
 
+            if skip is not None and limit is not None:
+                status = status[skip:skip+limit]
+
             for i in status:
                 i.access = True
 
@@ -87,6 +95,9 @@ class StatusView(APIView):
                     default=False
                 )
             ).order_by('-created_at')
+
+            if skip is not None and limit is not None:
+                status = status[skip:skip+limit]
 
         status = StatusSrz(status, many=True)
         return OK(status.data)
