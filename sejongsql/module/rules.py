@@ -54,16 +54,17 @@ class IsAlNum(ValidationRule):
     def is_valid(self, data):
         _len = len(data)
 
-        _string = re.findall('[a-z,A-Z]', data)
-        _num = re.findall('[1-9]', data)
+        _all = re.findall('^[a-zA-Z\\d`~!@#$%^&*()-_=+]*', data)
+        _string = re.findall('[a-z,A-Z]*', data)
+        _num = re.findall('[1-9]*', data)
 
-        if _len != len(''.join(_string + _num)):
+        if _len != len(''.join(_all)):  #특수문자, 영어, 숫자 제외 다른게 들어온 경우
             return False
         
-        if not _string:
+        if not len(''.join(_string)):   #영어 없을 경우
             return False
         
-        if not _num:
+        if not len(''.join(_num)):  #숫자 없을 경우
             return False
         
         return True
