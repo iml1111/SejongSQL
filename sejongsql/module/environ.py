@@ -143,10 +143,10 @@ def create_env(user, query, env_name, classes=None):
     db.close()
 
     # EnvBelongTable DB 적용
-    for name in result.tables:
+    for table in tables:
         tbe = EnvBelongTable(
             env_id=env,
-            table_name=name.lower()
+            table_name=table.lower()
         )
         tbe.save()
     
