@@ -90,6 +90,19 @@ def create_env(user, query, env_name, classes=None):
         queue.save()
         return
 
+    tables = []
+    while result.tables:
+        target = result.tables.pop(0)
+        flag = False
+        for table in result.tables:
+            if target in table:
+                result.tables.append(target)
+                flag = True
+                break
+        if flag:
+            continue
+        tables.append(target)
+
     parsed_list = []
     # SQL File 파싱 과정
     with open(
@@ -98,8 +111,8 @@ def create_env(user, query, env_name, classes=None):
         encoding='utf-8'
     ) as f:
         for query in result.parsed_list:
-            for table in result.tables:
-                query = query.replace(table, table.lower())
+            for table in tables:
+                query = query.replace(table, table.lower())            
             parsed_list.append(query)            
             f.write(query + '\n')
 

@@ -107,7 +107,7 @@ class UserView(APIView):
             request, path, params=[
                 Json('name', str, optional=True),
                 Json('old_pw', str, optional=True),
-                Json('new_pw', str, optional=True, rules=MinLen(8)),
+                Json('new_pw', str, optional=True, rules=[MinLen(8), IsPw()]),
             ])
             
         if not validator.is_valid:
