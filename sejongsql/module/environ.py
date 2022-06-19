@@ -253,7 +253,6 @@ def submit_problem(user, problem, env, query, warnings):
 
         if (toc-tic) > problem.timelimit:   #시간초과
             checked_warnings.append('time_limit')
-            accuracy = False
         
         user_warnings = Warning.objects.filter(
             id__in=warnings,    #문제에 걸린 warning 중에서
@@ -276,9 +275,13 @@ def submit_problem(user, problem, env, query, warnings):
             )
             wbp.save()
 
+            if warning.name == 'time_limit':
+                usp.accuracy = False
+                usp.save()
+
         status = True
         warning_result = WarningSrz(user_warnings, many=True).data
-    return status, accuracy, warning_result
+    return status, usp.accuracy, warning_result
 
 
 def get_table(env):
