@@ -198,6 +198,9 @@ def submit_problem(user, problem, env, query, warnings):
     cursor = db.cursor()
     db.select_db(env.db_name)
 
+    real_query = query.replace('\xa0', ' ')
+    query = query.lower().replace('\xa0', ' ')
+
     explain = QueryExplainer(
         uri="mysql://" + str(env.account_name) + ":" +
             str(env.account_pw) + "@" +
@@ -215,7 +218,7 @@ def submit_problem(user, problem, env, query, warnings):
         usp = UserSolveProblem(
             p_id=problem,
             user_id=user,
-            query=query,
+            query=real_query,
             accuracy=accuracy,
             submit=True,
         )
@@ -250,6 +253,7 @@ def submit_problem(user, problem, env, query, warnings):
 
         if (toc-tic) > problem.timelimit:   #시간초과
             checked_warnings.append('time_limit')
+            accuracy = False
         
         user_warnings = Warning.objects.filter(
             id__in=warnings,    #문제에 걸린 warning 중에서
@@ -259,7 +263,7 @@ def submit_problem(user, problem, env, query, warnings):
         usp = UserSolveProblem(
             p_id=problem,
             user_id=user,
-            query=query,
+            query=real_query,
             accuracy=accuracy,
             submit=True,
         )
