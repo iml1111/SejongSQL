@@ -171,6 +171,9 @@ class SejongAuthView(APIView):
             return BAD_REQUEST(validator.error_msg)
         data = validator.data
 
+        if User.objects.filter(sejong_id=data['sejong_id']).exists():
+            return FORBIDDEN("Sejong ID already exist.")
+
         sejong_auth = auth(
             id=data['sejong_id'],
             password=data['sejong_pw'],

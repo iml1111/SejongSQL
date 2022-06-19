@@ -159,7 +159,7 @@ class ProblemsInPgroupView(APIView):
             env_id=env,
             title=data['title'],
             content=data['content'],
-            answer=data['answer'],
+            answer=data['answer'].replace('\xa0', ' '),
             timelimit=data['timelimit'] or 10   #기본값 10초
         )  
         problem.save()
@@ -277,7 +277,7 @@ class ProblemView(APIView):
 
         problem.title = data['title'] or problem.title
         problem.content = data['content'] or problem.content
-        problem.answer = data['answer'] or problem.answer
+        problem.answer = data['answer'].replace('\xa0', ' ') or problem.answer
         problem.timelimit = data['timelimit'] or problem.timelimit
 
         if data['warnings'] is not None:
@@ -392,7 +392,7 @@ class ProblemRunView(APIView):
         usp = UserSolveProblem(
             p_id=problem,
             user_id=user,
-            query=query
+            query=data['query'].replace('\xa0', ' ')
         )
         usp.save()
 
@@ -505,7 +505,7 @@ class ProblemSubmitView(APIView):
         
         if not data['query']:
             return BAD_REQUEST("query does not exist.")
-        query = data['query'].lower().replace('\xa0', ' ')
+        query = data['query']
 
         if not problem.env_id:
             return FORBIDDEN("can't find env.")
