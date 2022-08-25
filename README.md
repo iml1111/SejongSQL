@@ -23,3 +23,4 @@ SSQL은 인터넷 환경이 보장된다면 언제 어디서든 SQL Query 실습
 
 ### 쿼리 효율성 분석 기능
 
+<img width="715" alt="image" src="https://user-images.githubusercontent.com/29897277/186645164-bd1971fd-672f-4fd0-b6e6-1eccecbaa9be.png">
