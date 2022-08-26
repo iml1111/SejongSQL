@@ -24,3 +24,15 @@ SSQL은 인터넷 환경이 보장된다면 언제 어디서든 SQL Query 실습
 ### 쿼리 효율성 분석 기능
 
 <img width="715" alt="image" src="https://user-images.githubusercontent.com/29897277/186645164-bd1971fd-672f-4fd0-b6e6-1eccecbaa9be.png">
+
+기존의 수업 진행 방식에서는, 학생들이 제출한 Query문에 대하여 단순히 정답 불/일치 체크만 진행하였습니다.
+
+하지만 SSQL에서는 이러한 쿼리에서 도출된 결과의 매칭 결과 뿐만 아니라 더 나아가 해당 Query의 효율성 측면도 검증합니다.여기서 말하는 효율성이란, **Full table / Index Scan, File Sort, Uncacheable** 등 다양하며 이는 관리자가 문제마다 조건을 지정할 수 있게 구현되어 있습니다. 
+
+이를 통해 사용자는 쿼리의 정답 여부 뿐 아니라 보다 좋은 쿼리를 작성하기 위한 개선 방향성을 제시 받을 수 있습니다.
+
+### 대학 강의를 위한 올인원 플랫폼
+
+<img width="1001" alt="image" src="https://user-images.githubusercontent.com/29897277/186811003-8ee556da-c412-4ba6-a5df-8c838a0eaca5.png">
+
+저희들은 SSQL를 만들기 위해 기존 DB 관련 강의 커리큘럼을 면밀히 분석하고, 학생들과 교수/조교님들이 더욱 편리하게 강의가 다가올 수 있도록 지속적인 피드백과 함께 서비스를 개선하였습니다. 
