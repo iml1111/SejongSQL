@@ -1,24 +1,109 @@
 # SejongSQL
-2022년 1학기 세종대학교 창의학기제 - SQL Online Judge
+**2022년 1학기 세종대학교 창의학기제 - SQL Online Judge**
 
-# Dependency
-- Python 3.9.X
+<img width="1719" alt="image" src="https://user-images.githubusercontent.com/29897277/186642627-9446e1c7-52b6-4b94-8219-c9a13eb813fb.png">
 
-# Envirements
-```shell
-# Authentication 시크릿 키
-SECRET_KEY=top-secret
-# config 주입 정보
-# development or production
-DJANGO_SETTINGS_MODULE=config.settings.development
+현재 세종대학교에는 각종 Programming 언어를 연습하는 Online Judge System이 존재하는 반면, SQL에 대한 Online Judge는 존재하지 않습니다. 본 프로젝트는 세종대학교 학생들이 쉽게 SQL을 학습할 수 있도록 Web 기반의 Judge System을 제공하여 언제 어디서나 SQL 연습 및 실습을 할 수 있는 학습 환경을 제공할 수 있는 것을 목표로 합니다.
 
-# 본 서비스 DB 정보
-SSQL_ORIGIN_MYSQL_DB_NAME=sejongsql
-SSQL_ORIGIN_MYSQL_USER=root
-SSQL_ORIGIN_MYSQL_PASSWORD=password
-SSQL_ORIGIN_MYSQL_HOST=localhost
-SSQL_ORIGIN_MYSQL_PORT=3306
 
-# mysql docker 정보
-MYSQL_ROOT_PASSWORD=password
-```
+
+
+## SejongSQL의 특징
+
+- 인터넷이 연결된다면 언제 어디서나 연습 가능
+- 가상 DB을 통해 언제 어디서 안전하게 쿼리 테스트 가능
+- 자신이 작성한 쿼리에 대한 성능 분석 기능 지원
+- 수업 모드 / 시험 모드 등, 학교 강의에 최적화된 기능 지원
+
+
+
+### Web기반 데이터베이스 실습 환경 제공
+
+<img width="994" alt="image" src="https://user-images.githubusercontent.com/29897277/186644135-359ca078-9bc7-40a6-a5d1-64b63cc11243.png">
+
+SSQL은 인터넷 환경이 보장된다면 언제 어디서든 SQL Query 실습이 가능합니다. 기존에는 교수 및 조교와 같은, 분반 관리자가 학생들에게 일일히 실습 데이터를 배포하여 학생들이 직접 각각의 PC에 SQL 데이터를 포함한 모든 실습 환경을 구축해야만 했습니다.
+
+하지만, SSQL은 분반 관리자가 한번 만 클라우드 상에 실습 데이터를 업로드하면, 이후 분반에 속한 모든 사용자가 해당 실습 데이터에 접근하여 해당 환경에서 자유롭게 학습을 수행할 수 있습니다!
+
+
+
+### 쿼리 효율성 분석 기능
+
+<img width="715" alt="image" src="https://user-images.githubusercontent.com/29897277/186645164-bd1971fd-672f-4fd0-b6e6-1eccecbaa9be.png">
+
+기존의 수업 진행 방식에서는, 학생들이 제출한 Query문에 대하여 단순히 정답 불/일치 체크만 진행하였습니다.
+
+하지만 SSQL에서는 이러한 쿼리에서 도출된 결과의 매칭 결과 뿐만 아니라 더 나아가 해당 Query의 효율성 측면도 검증합니다.여기서 말하는 효율성이란, **Full table / Index Scan, File Sort, Uncacheable** 등 다양하며 이는 **관리자가 문제마다 원하는 조건을 지정**할 수 있게 구현되어 있습니다. 
+
+이를 통해 사용자는 쿼리의 정답 여부 뿐 아니라 보다 좋은 쿼리를 작성하기 위한 개선 방향성을 제시 받을 수 있습니다.
+
+
+
+### 대학 강의를 위한 올인원 플랫폼
+
+<img width="1001" alt="image" src="https://user-images.githubusercontent.com/29897277/186811003-8ee556da-c412-4ba6-a5df-8c838a0eaca5.png">
+
+저희들은 SSQL를 만들기 위해 기존 DB 관련 강의 커리큘럼을 면밀히 분석하고, 학생들과 교수/조교님들에게 더욱 편리하게 강의가 다가올 수 있도록 지속적인 피드백을 통해 서비스를 개선하였습니다. 
+
+- Excel 등의 외부 툴에 의존하지 않고 학생들의 성적 관리 지표 및 통계 인터페이스 제공
+- 제출한 Query문에 대한 분석/실행 결과를 교수/조교가 함께 확인 및 개인별 원격 피드백 기능
+- 가상 DB를 통해 문제별 환격 격리 및 시험 모드 제공
+- Query의 효율성 분석을 포함한 모든 문제의 채점 자동화 지원
+
+
+
+## 서비스 구성도 및 차별성
+
+![image](https://user-images.githubusercontent.com/29897277/187076566-e97fbe4b-1ccb-4f63-8981-bb2c749df4c5.png)
+
+
+
+### 컨테이너 기반 서비스 구축
+
+도커/컨테이너에 기반하여 개발/배포 환경을 격리시키고 확장성 있는 구조로 서비스를 구축하였습니다. 
+
+이를 통해 각 어플리케이션에서 배포상에 겪었던 의존성/이슈를 해결하고 추후에 단일 서버에서 확장시킬 때에도 최소한의 변경만으로도 서비스를 확장시킬 수 있도록 준비되어 있습니다.
+
+
+
+### 서비스 DB / 문제 관리 DB 분리
+
+SSQL의 서비스 데이터를 관리하는 DB와 교수/조교님들이 강의, 문제들을 위해 올려주시는 Table 데이터를 분리하여 격리하였습니다.
+
+- 논리적/물리적으로 두 DB를 격리시켜 보안적인 안전성 확보
+- 성질이 다른 두 데이터에 대한 각종 Job, 태스크를 효율적으로 수행할 수 있도록 구조화
+
+
+
+### 쿼리 분석을 위한 자체 비동기 큐 개발
+
+![image](https://user-images.githubusercontent.com/29897277/187077389-8d581877-d76d-4f10-a62c-0ac0cd1a55c3.png)
+
+학생이 질의한 쿼리에 따라 장시간이 소요되어 서버에 부담을 줄 수 있는 문제가 발생할 수 있음. 
+이를 해결하기 위해, 각 Django Server Worker 내부에 비동기 큐를 세팅하여 서비스에서 서비스에 오는 부하를 관리하고자 하였습니다.
+
+본래 이러한 메시지큐는 많은 오픈소스 존재했지만 프로젝트를 진행하는 동안, **외부 모듈에 대한 종속성을 줄이고, 팀원 전체 함께 이러한 비동기 큐를 직접 구현해보며 이해도를 높이기 위해 [자체 모듈](https://github.com/iml1111/SejongSQL/tree/develop/sejongsql/module/async_queue)을 구현**하기로 하였습니다.
+
+- Production Level의 복잡하고 무거운 기능이 필요하지 않음
+- 가급적이면 복잡도의 최소화를 위해 Django 내에서 해당 시스템 전체를 통제하기를 원했음.
+- 외부 프로그램이 추가될 때마다 의존성 및 관리 포인트가 증가함.
+- SejongSQL에 특화된 여러 Shortcut 메소드 등을 커스터마이징할 수 있어야 했음.
+
+
+
+### Query Explainer
+
+<img width="715" alt="image" src="https://user-images.githubusercontent.com/29897277/186645164-bd1971fd-672f-4fd0-b6e6-1eccecbaa9be.png">
+
+SejongSQL은 입력된 쿼리로 질의된 결과에 대한 정답 매칭 뿐만 아니라, **해당 쿼리가 얼마나 잘 짜여져 있는지에 대해, 분석할 수 있는 기능을 제공**합니다.
+
+각 DBMS의 옵티마이저에서 제공되는 Explain를 통해 해당 쿼리의 실행 계획을 가져온 후 해당 구문을 파싱하여, 문제점을 Rule based 기반한 방법으로 분석합니다.
+
+- **쿼리 효율성 검사 로직 제공**
+  - **Full table scan:** 해당 쿼리가 Index가 없이 Full scan이 되었거나 Index가 있더라도 Index Full scan이 된 경우
+  - **No Join:** 커리큘럼에서 JOIN 사용을 숙달시키기 위해 해당 패턴을 강제시키기 위한 패턴 중 하나입니다. 단순한 문자열 패턴이 아닌 실행 계획에 의한 것이기 때문에 자동화된 채점에 유용합니다.
+  - **File Sort:** 쿼리 내에서 Index를 활용하지 않고, 메모리 혹은 디스크 상의 정렬을 수행한 경우, 반환.
+  - **Impossible Condition:** 쿼리의 조건걸 구문이 테이블 구조상 반드시 False를 반환할 때
+  - **Uncacheable**: 서브 쿼리 및 유니온 쿼리에 공급되는 모든 값에 대하여 테이블이 캐싱이 불가능하여 계속해서 재연산을 수행해야 하는 오버헤드 가능성이 있는 경우
+- **확장성 있게 설계된 검사 로직 구조**
+  - 개당 Query Explainer의 구조에 기반하여 다양한 패턴/조건을 추가적으로 확장시킬 수 있ㅇ느며, 이를 통해 각 강의에 최적화된 여러 조건들을 추가적으로 생성 및 제공할 계획입니다.
