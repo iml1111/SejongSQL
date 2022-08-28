@@ -47,3 +47,4 @@ SSQL은 인터넷 환경이 보장된다면 언제 어디서든 SQL Query 실습
 
 ## 서비스 구성도
 
+![image](https://user-images.githubusercontent.com/29897277/187076015-dd44afea-4a10-48a2-968b-1fd915675816.png)
